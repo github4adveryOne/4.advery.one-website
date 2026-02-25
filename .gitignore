@@ -1,0 +1,15 @@
+# Caddy & Logs
+*.log
+*.tmp
+temp/
+subdomains/
+
+# System
+.DS_Store
+.caddy/
+.config/
+
+# Existing Repos
+# Don't track if they have their own .git
+projects/demo/.git/
+4.advery.one/.git/
