@@ -436,6 +436,8 @@
       }
     };
     let msalInstance, currentUser, allMovies = [], selectedMovie = null, calendarDays = 7;
+    let lastUpdateTime = null;
+    const imageCache = new Map();
 
     async function init() {
       console.log("MSAL init starting... URL:", window.location.href, "Hash:", window.location.hash);
@@ -523,7 +525,7 @@
       document.getElementById("app-screen").classList.remove("hidden");
       document.getElementById("user-display").textContent = currentUser.name;
       setDays(calendarDays);
-      setInterval(loadMovies, 15000);
+      setInterval(loadMovies, 10000); // BANDWIDTH OPTIMIZATION: 10s polling
     }
 
     function setDays(n) {
@@ -544,9 +546,52 @@
         renderCalendar();
     }
 
-    async function loadMovies() {
-      const res = await fetch("/api/n8n/get-movies");
+    
+// ==================== BANDWIDTH OPTIMIZATION: Lazy Image Loading ====================
+async function loadMovieImage(movieId, imgElement) {
+  // Check cache first
+  if (imageCache.has(movieId)) {
+    imgElement.src = imageCache.get(movieId);
+    return;
+  }
+  
+  // Show loading state
+  imgElement.classList.add('loading');
+  
+  try {
+    const response = await fetch(`/api/n8n/image/${movieId}`);
+    if (response.ok) {
+      const blob = await response.blob();
+      const imageUrl = URL.createObjectURL(blob);
+      imageCache.set(movieId, imageUrl);
+      imgElement.src = imageUrl;
+      imgElement.classList.remove('loading');
+    } else {
+      console.warn(`Image not found for movie ${movieId}`);
+      imgElement.classList.add('error');
+    }
+  } catch (error) {
+    console.error(`Failed to load image for movie ${movieId}:`, error);
+    imgElement.classList.add('error');
+  }
+}
+async function loadMovies() {
+      let url = '/api/n8n/get-movies';
+      if (lastUpdateTime) {
+        // BANDWIDTH OPTIMIZATION: Use incremental updates
+        url = `/api/n8n/get-movies-since?since=${encodeURIComponent(lastUpdateTime)}`;
+      }
+      
+      const res = await fetch(url);
       const newMovies = await res.json();
+      
+      // BANDWIDTH OPTIMIZATION: Update last update time for incremental updates
+      if (newMovies.length > 0) {
+        const timestamps = newMovies.map(m => m.updated_at).filter(t => t);
+        if (timestamps.length > 0) {
+          lastUpdateTime = timestamps.sort().reverse()[0];
+        }
+      }
       
       // Check if movies have actually changed to prevent flickering
       if (JSON.stringify(newMovies) !== JSON.stringify(allMovies)) {
@@ -628,14 +673,47 @@
               statusOverlay = '<div class="absolute inset-0 bg-black/60 flex items-center justify-center z-10"><span class="status-badge status-failed">Fehler</span></div>';
           }
 
+          // Create image element for lazy loading
+          const imgContainer = document.createElement('div');
+          imgContainer.className = 'w-full h-full absolute inset-0';
+          
+          let imgElement;
+          if (m.posterUrl) {
+            imgElement = document.createElement('img');
+            imgElement.className = 'w-full h-full object-cover lazy-image';
+            imgElement.dataset.movieId = m.id;
+            imgElement.alt = m.title;
+            
+            // Use a placeholder initially, load on visibility
+            imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
+            
+            // Load image when it becomes visible
+            const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  loadMovieImage(m.id, imgElement);
+                  observer.unobserve(entry.target);
+                }
+              });
+            });
+            observer.observe(imgElement);
+            
+            imgContainer.appendChild(imgElement);
+          } else {
+            // No poster yet, show loading shimmer
+            imgContainer.innerHTML = '<div class="w-full h-full poster-loading-shimmer flex items-center justify-center opacity-30"><i data-lucide="sparkles" class="h-6 w-6"></i></div>';
+          }
+
           movieEl.innerHTML = `
               ${statusOverlay}
-              ${m.posterUrl ? `<img src="${m.posterUrl}" class="w-full h-full object-cover" />` : `<div class="w-full h-full poster-loading-shimmer flex items-center justify-center opacity-30"><i data-lucide="sparkles" class="h-6 w-6"></i></div>`}
               <div class="mini-movie-info">
                   <div class="text-[8px] font-black text-cyan-400 mb-1">${new Date(m.premierAt).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</div>
                   <div class="text-[10px] font-black text-white leading-tight uppercase truncate">${m.title}</div>
               </div>
           `;
+          
+          // Insert the image container
+          movieEl.insertBefore(imgContainer, movieEl.firstChild);
           
           // Hover sound or haptic feedback (simulated)
           movieEl.addEventListener('mouseenter', () => {
@@ -678,9 +756,14 @@
       const poster = document.getElementById("detail-poster");
       const loader = document.getElementById("detail-poster-loading");
       if (m.posterUrl) {
-        poster.src = m.posterUrl;
+        // Clear any previous image
+        poster.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
+        poster.classList.add('lazy-image', 'loading');
         poster.classList.remove("hidden");
         loader.classList.add("hidden");
+        
+        // Load the image
+        loadMovieImage(m.id, poster);
       } else {
         poster.classList.add("hidden");
         loader.classList.remove("hidden");
@@ -872,6 +955,25 @@
     });
     
     init();
-  </script>
+  
+// ==================== BANDWIDTH OPTIMIZATION: CSS for Lazy Loading ====================
+const lazyLoadingStyle = document.createElement('style');
+lazyLoadingStyle.textContent = `
+  .lazy-image.loading {
+    opacity: 0.3;
+    filter: blur(5px);
+    transition: opacity 0.3s ease, filter 0.3s ease;
+  }
+  
+  .lazy-image.error {
+    opacity: 0.5;
+    background: linear-gradient(45deg, #020617 25%, #0f172a 50%, #020617 75%);
+    background-size: 200% 200%;
+    animation: shimmer 2s infinite;
+  }
+`;
+document.head.appendChild(lazyLoadingStyle);
+
+    </script>
 </body>
 </html>
