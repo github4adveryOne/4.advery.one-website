@@ -714,12 +714,14 @@ async function loadMovies() {
           // Create image element for lazy loading
           const imgContainer = document.createElement('div');
           imgContainer.className = 'w-full h-full absolute inset-0';
+          imgContainer.style.border = '2px solid red'; // DEBUG: Make container visible
           
           // Always create img element for lazy loading, regardless of posterUrl in metadata
           const imgElement = document.createElement('img');
           imgElement.className = 'w-full h-full object-cover lazy-image';
           imgElement.dataset.movieId = m.id;
           imgElement.alt = m.title;
+          imgElement.style.border = '1px solid blue'; // DEBUG: Make image visible
           
           // Use a placeholder initially, load on visibility
           imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
@@ -1006,6 +1008,30 @@ lazyLoadingStyle.textContent = `
   }
 `;
 document.head.appendChild(lazyLoadingStyle);
+
+    // DEBUG: Manual test button
+    const debugButton = document.createElement('button');
+    debugButton.textContent = 'DEBUG: Test Image Loading';
+    debugButton.style.position = 'fixed';
+    debugButton.style.top = '10px';
+    debugButton.style.right = '10px';
+    debugButton.style.zIndex = '9999';
+    debugButton.style.padding = '10px';
+    debugButton.style.background = 'red';
+    debugButton.style.color = 'white';
+    debugButton.onclick = () => {
+      console.log('DEBUG: Testing image loading...');
+      const images = document.querySelectorAll('.lazy-image');
+      console.log(`Found ${images.length} lazy images`);
+      images.forEach((img, i) => {
+        const movieId = img.dataset.movieId;
+        console.log(`Image ${i}: movieId=${movieId}, src=${img.src.substring(0, 50)}...`);
+        if (movieId) {
+          loadMovieImage(movieId, img);
+        }
+      });
+    };
+    document.body.appendChild(debugButton);
 
     </script>
 </body>
