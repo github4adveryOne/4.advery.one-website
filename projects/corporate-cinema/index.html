@@ -724,7 +724,8 @@ async function loadMovies() {
           imgElement.style.border = '1px solid blue'; // DEBUG: Make image visible
           
           // Use a placeholder initially, load on visibility
-          imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
+          // DEBUG: Changed from dark blue (#020617) to bright red (#ff0000) to make it visible
+          imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2ZmMDAwMCIvPjwvc3ZnPg==';
           
           // Load image when it becomes visible
           const observer = new IntersectionObserver((entries) => {
@@ -796,7 +797,8 @@ async function loadMovies() {
       const loader = document.getElementById("detail-poster-loading");
       
       // Always try to load image, regardless of posterUrl in metadata
-      poster.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
+      // DEBUG: Changed from dark blue (#020617) to bright red (#ff0000) to make it visible
+      poster.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2ZmMDAwMCIvPjwvc3ZnPg==';
       poster.classList.add('lazy-image', 'loading');
       poster.classList.remove("hidden");
       loader.classList.add("hidden");
