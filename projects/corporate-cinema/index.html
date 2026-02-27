@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Corporate Cinema</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
+  <style>
+    body { background: radial-gradient(circle at 20% 20%, #0f172a, #020617 60%); min-height: 100vh; }
+    .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    .hidden { display: none !important; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .animate-spin { animation: spin 1s linear infinite; }
+    .modal-backdrop { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); }
+  </style>
+</head>
+<body class="text-slate-100 font-sans">
+  <div id="auth-screen" class="min-h-screen flex items-center justify-center p-6">
+    <div class="glass max-w-md w-full rounded-[2.5rem] p-10 text-center shadow-2xl">
+      <div class="flex items-center justify-center gap-3 text-cyan-400 mb-6">
+        <i data-lucide="clapperboard" class="h-12 w-12"></i>
+      </div>
+      <h1 class="text-3xl font-black mb-4">Corporate Cinema</h1>
+      <p class="text-slate-400 mb-8">Sign in to pitch and vote on knowledge sharing sessions</p>
+      
+      <button id="login-btn" class="w-full glass px-6 py-4 rounded-2xl flex items-center justify-center gap-4 hover:bg-slate-800/60 transition-all mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#0078d4">
+          <path d="M0 0h11.408v11.408H0z" /><path d="M12.592 0H24v11.408H12.592z" /><path d="M0 12.592h11.408V24H0z" /><path d="M12.592 12.592H24V24H12.592z" />
+        </svg>
+        <span class="font-bold">Sign in with Microsoft</span>
+      </button>
+      
+      <div id="auth-status" class="text-sm text-slate-500 min-h-[20px]">Ready</div>
+      <div id="error-box" class="mt-4 p-4 bg-red-900/20 border border-red-700/30 rounded-xl hidden">
+        <p id="error-msg" class="text-red-200 text-sm"></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-screen" class="hidden min-h-screen p-6 sm:p-12">
+    <header class="max-w-6xl mx-auto mb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+      <div>
+        <div class="flex items-center gap-3 text-cyan-400 mb-2">
+          <i data-lucide="clapperboard" class="h-8 w-8"></i>
+          <span class="font-bold tracking-widest text-sm uppercase">Corporate Cinema</span>
+        </div>
+        <h1 class="text-4xl sm:text-6xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-500">Knowledge Hub</h1>
+        <p class="text-slate-400 mt-4 text-lg max-w-2xl">Pitch movies, buy tickets, and greenlight what your company watches next.</p>
+      </div>
+      <div class="flex flex-col sm:flex-row lg:flex-col items-stretch lg:items-end gap-3 min-w-[280px]">
+        <div class="glass px-4 py-3 rounded-2xl w-full">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-xs uppercase tracking-widest text-slate-400">Signed in as</p>
+              <p id="user-name" class="font-semibold text-sm"></p>
+              <p id="user-email" class="text-xs text-slate-400"></p>
+            </div>
+            <button id="logout-btn" class="text-xs text-red-300 border border-red-300/30 rounded-lg px-2 py-1 hover:bg-red-400/10 transition">Logout</button>
+          </div>
+        </div>
+        <button id="open-pitch-modal" class="glass px-5 py-3 rounded-2xl inline-flex items-center justify-center gap-2 hover:bg-cyan-500/10 transition">
+          <i data-lucide="plus" class="h-4 w-4"></i><span class="text-sm font-semibold">Pitch a Movie</span>
+        </button>
+      </div>
+    </header>
+    <main class="max-w-6xl mx-auto">
+      <div id="movies-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7"></div>
+    </main>
+  </div>
+
+  <!-- Pitch Modal -->
+  <div id="pitch-modal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-6 z-50">
+    <div class="glass max-w-lg w-full rounded-[2.5rem] p-10 shadow-2xl">
+      <h2 class="text-2xl font-bold mb-6">Pitch Your Movie</h2>
+      <form id="pitch-form" class="space-y-4">
+        <div>
+          <label class="block text-xs uppercase tracking-widest text-slate-400 mb-2">Title</label>
+          <input type="text" id="pitch-title" required class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500" />
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-widest text-slate-400 mb-2">Description</label>
+          <textarea id="pitch-desc" required rows="3" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-widest text-slate-400 mb-2">Ticket Threshold</label>
+          <input type="number" id="pitch-threshold" value="5" min="1" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500" />
+        </div>
+        <div class="flex gap-4 pt-4">
+          <button type="button" id="close-pitch-modal" class="flex-1 py-3 text-slate-400 hover:text-white transition">Cancel</button>
+          <button type="submit" class="flex-1 bg-cyan-600 py-3 rounded-xl font-bold hover:bg-cyan-500 transition">Pitch It</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const TENANT_ID = "b2057218-c748-4a02-a220-1309d3034ba1";
+    const msalConfig = {
+      auth: {
+        clientId: "6ff61b4c-46af-4452-b405-5b359e83c843",
+        authority: `https://login.microsoftonline.com/${TENANT_ID}`,
+        redirectUri: window.location.origin + "/cinema/",
+        navigateToLoginRequestUrl: false
+      },
+      cache: { 
+        cacheLocation: "localStorage",
+        storeAuthStateInCookie: true
+      }
+    };
+
+    let msalInstance = null;
+    let currentUser = null;
+
+    async function init() {
+      console.log("Initializing MSAL...");
+      try {
+        msalInstance = new msal.PublicClientApplication(msalConfig);
+        await msalInstance.initialize();
+        
+        // Use a more robust check for MSAL response
+        const resp = await msalInstance.handleRedirectPromise();
+        console.log("Redirect response:", resp);
+        
+        if (resp && resp.account) {
+            currentUser = resp.account;
+        } else {
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length > 0) {
+                currentUser = accounts[0];
+            }
+        }
+
+        if (currentUser) {
+          showApp();
+        }
+      } catch (e) { 
+        console.error("Initialization error:", e);
+        if (e.errorCode === "hash_empty_error") {
+          console.warn("Detected hash_empty_error, checking for existing session...");
+          const accounts = msalInstance.getAllAccounts();
+          if (accounts.length > 0) {
+            currentUser = accounts[0];
+            showApp();
+          }
+        }
+      }
+      lucide.createIcons();
+    }
+
+    function showApp() {
+      document.getElementById("auth-screen").classList.add("hidden");
+      document.getElementById("app-screen").classList.remove("hidden");
+      document.getElementById("user-name").textContent = currentUser.name;
+      document.getElementById("user-email").textContent = currentUser.username;
+      loadMovies();
+    }
+
+    document.getElementById("login-btn").onclick = async () => {
+      try {
+        const loginRequest = {
+          scopes: ["User.Read"],
+          prompt: "select_account"
+        };
+        const resp = await msalInstance.loginPopup(loginRequest);
+        currentUser = resp.account;
+        showApp();
+      } catch (e) {
+        console.error("Login popup failed, trying redirect", e);
+        try {
+            await msalInstance.loginRedirect({
+                scopes: ["User.Read"],
+                onRedirectNavigate: (url) => {
+                    return true;
+                }
+            });
+        } catch (redirectError) {
+            document.getElementById("error-box").classList.remove("hidden");
+            document.getElementById("error-msg").textContent = redirectError.message;
+        }
+      }
+    };
+
+    async function loadMovies() {
+      const res = await fetch("/api/n8n/get-movies");
+      const movies = await res.json();
+      document.getElementById("movies-container").innerHTML = movies.map(m => `
+        <div class="glass p-6 rounded-2xl flex flex-col justify-between">
+          <div>
+            <h3 class="text-xl font-bold mb-2">${m.title}</h3>
+            <p class="text-slate-400 text-sm mb-4">${m.description}</p>
+            <p class="text-xs text-slate-500 mb-4">Dir. ${m.director}</p>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs font-bold mb-2">
+              <span class="text-slate-400">Tickets</span>
+              <span class="${m.sold >= m.threshold ? 'text-cyan-400' : 'text-slate-200'}">${m.sold}/${m.threshold}</span>
+            </div>
+            <div class="h-1.5 w-full bg-slate-800 rounded-full mb-4 overflow-hidden">
+                <div class="h-full bg-cyan-500" style="width: ${Math.min((m.sold/m.threshold)*100, 100)}%"></div>
+            </div>
+            <button onclick="buyTicket(${m.id})" class="w-full py-2 bg-slate-800 border border-slate-700 hover:bg-slate-700 rounded-xl text-sm font-bold transition">Buy Ticket</button>
+          </div>
+        </div>
+      `).join("");
+      lucide.createIcons();
+    }
+
+    async function buyTicket(movieId) {
+      await fetch("/api/n8n/buy-ticket", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ movieId, user: { name: currentUser.name, username: currentUser.username } })
+      });
+      loadMovies();
+    }
+
+    // Modal logic
+    const pitchModal = document.getElementById("pitch-modal");
+    document.getElementById("open-pitch-modal").onclick = () => pitchModal.classList.replace("hidden", "flex");
+    document.getElementById("close-pitch-modal").onclick = () => pitchModal.classList.replace("flex", "hidden");
+
+    document.getElementById("pitch-form").onsubmit = async (e) => {
+      e.preventDefault();
+      const payload = {
+        title: document.getElementById("pitch-title").value,
+        description: document.getElementById("pitch-desc").value,
+        threshold: parseInt(document.getElementById("pitch-threshold").value),
+        director: currentUser.name,
+        directorEmail: currentUser.username
+      };
+      await fetch("/api/n8n/add-movie", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      pitchModal.classList.replace("flex", "hidden");
+      document.getElementById("pitch-form").reset();
+      loadMovies();
+    };
+
+    init();
+  </script>
+</body>
+</html>

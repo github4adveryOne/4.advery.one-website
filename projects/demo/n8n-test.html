@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw x n8n Integration</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f4f7f6; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+        h1 { color: #ff6d5a; }
+        button { background: #ff6d5a; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 1rem; transition: 0.3s; }
+        button:hover { background: #e55b4a; }
+        #response { margin-top: 1.5rem; padding: 10px; border-radius: 4px; background: #eee; font-family: monospace; word-break: break-all; min-height: 40px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🐾 OpenClaw x n8n</h1>
+        <p>This page was deployed by OpenClaw to test the webhook integration.</p>
+        <button onclick="triggerWebhook()">Trigger n8n Workflow</button>
+        <div id="response">Waiting for trigger...</div>
+    </div>
+
+    <script>
+        async function triggerWebhook() {
+            const display = document.getElementById('response');
+            display.innerText = 'Sending request...';
+            try {
+                // Use production URL
+                const response = await fetch('https://flow.advery.one/webhook/openclaw-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source: 'OpenClaw Web Page', status: 'success' })
+                });
+                const data = await response.text();
+                display.innerText = 'n8n says: ' + data;
+            } catch (err) {
+                display.innerText = 'Error: ' + err.message;
+            }
+        }
+    </script>
+</body>
+</html>
