@@ -601,55 +601,67 @@ async function loadMovies() {
       const newMovies = await res.json();
       console.log('API returned', newMovies.length, 'movies');
       
-      // BANDWIDTH OPTIMIZATION: Update last update time for incremental updates
-      if (newMovies.length > 0) {
-        const timestamps = newMovies.map(m => m.updated_at).filter(t => t);
-        if (timestamps.length > 0) {
-          lastUpdateTime = timestamps.sort().reverse()[0];
-        }
+      // Handle the response
+      if (newMovies.length === 0) {
+        // Empty response means no changes since lastUpdateTime
+        console.log('No changes since last update, keeping existing movies');
+        return; // Don't change anything
       }
       
-      // Check if movies have actually changed to prevent flickering
-      let moviesChanged = false;
+      // We got movies (could be new, updated, or deleted)
+      console.log('Processing', newMovies.length, 'movies from API');
       
-      // Merge new movies with existing ones to preserve posterUrl
-      const mergedMovies = [...allMovies];
+      // Update lastUpdateTime to the latest updated_at
+      const timestamps = newMovies.map(m => m.updated_at).filter(t => t);
+      if (timestamps.length > 0) {
+        lastUpdateTime = timestamps.sort().reverse()[0];
+        console.log('Updated lastUpdateTime to:', lastUpdateTime);
+      }
       
-      newMovies.forEach(newMovie => {
-        const existingIndex = mergedMovies.findIndex(m => m.id === newMovie.id);
-        if (existingIndex >= 0) {
-          // Update existing movie but preserve posterUrl if not in new data
-          if (!newMovie.posterUrl && mergedMovies[existingIndex].posterUrl) {
-            newMovie.posterUrl = mergedMovies[existingIndex].posterUrl;
-          }
-          mergedMovies[existingIndex] = newMovie;
-          moviesChanged = true;
-        } else {
-          // New movie
-          mergedMovies.push(newMovie);
-          moviesChanged = true;
-        }
+      // Create a map of new movies by id for easy lookup
+      const newMoviesMap = new Map();
+      newMovies.forEach(movie => {
+        newMoviesMap.set(movie.id, movie);
       });
       
-      // Only filter out movies if we got a non-empty response
-      let finalMovies = mergedMovies;
-      if (newMovies.length > 0) {
-        // If we got movies, filter to only include those (removes deleted movies)
-        const newMovieIds = newMovies.map(m => m.id);
-        finalMovies = mergedMovies.filter(m => newMovieIds.includes(m.id));
+      // Update existing movies and add new ones
+      const updatedMovies = [];
+      let hasChanges = false;
+      
+      // First, check existing movies
+      for (const existingMovie of allMovies) {
+        if (newMoviesMap.has(existingMovie.id)) {
+          // Movie exists in new data - update it
+          const newMovie = newMoviesMap.get(existingMovie.id);
+          // Preserve posterUrl if not in new data
+          if (!newMovie.posterUrl && existingMovie.posterUrl) {
+            newMovie.posterUrl = existingMovie.posterUrl;
+          }
+          updatedMovies.push(newMovie);
+          newMoviesMap.delete(existingMovie.id); // Remove from map so we don't add it again
+          hasChanges = true;
+        } else {
+          // Movie not in new data - it was deleted
+          console.log('Movie deleted:', existingMovie.id, existingMovie.title);
+          hasChanges = true;
+          // Don't add to updatedMovies (it's deleted)
+        }
       }
-      // If newMovies is empty, keep all existing movies (no changes)
       
-      console.log('moviesChanged:', moviesChanged);
-      console.log('finalMovies length:', finalMovies.length);
-      console.log('allMovies length:', allMovies.length);
+      // Add any remaining new movies (these are brand new)
+      for (const [id, movie] of newMoviesMap) {
+        console.log('New movie:', id, movie.title);
+        updatedMovies.push(movie);
+        hasChanges = true;
+      }
       
-      if (moviesChanged || finalMovies.length !== allMovies.length) {
-          console.log("Movies updated, re-rendering calendar...");
-          allMovies = finalMovies;
-          renderCalendar();
+      // Only update if there were changes
+      if (hasChanges) {
+        console.log('Movies changed, updating with', updatedMovies.length, 'movies');
+        allMovies = updatedMovies;
+        renderCalendar();
       } else {
-          console.log("No changes, skipping re-render");
+        console.log('No actual changes detected');
       }
 
       if (selectedMovie) {
