@@ -584,14 +584,22 @@ async function loadMovieImage(movieId, imgElement) {
   }
 }
 async function loadMovies() {
+      console.log('=== loadMovies called ===');
+      console.log('lastUpdateTime:', lastUpdateTime);
+      console.log('allMovies count:', allMovies.length);
+      
       let url = '/api/n8n/get-movies';
       if (lastUpdateTime) {
         // BANDWIDTH OPTIMIZATION: Use incremental updates
         url = `/api/n8n/get-movies-since?since=${encodeURIComponent(lastUpdateTime)}`;
+        console.log('Using get-movies-since with url:', url);
+      } else {
+        console.log('Using get-movies (initial load)');
       }
       
       const res = await fetch(url);
       const newMovies = await res.json();
+      console.log('API returned', newMovies.length, 'movies');
       
       // BANDWIDTH OPTIMIZATION: Update last update time for incremental updates
       if (newMovies.length > 0) {
@@ -632,10 +640,16 @@ async function loadMovies() {
       }
       // If newMovies is empty, keep all existing movies (no changes)
       
+      console.log('moviesChanged:', moviesChanged);
+      console.log('finalMovies length:', finalMovies.length);
+      console.log('allMovies length:', allMovies.length);
+      
       if (moviesChanged || finalMovies.length !== allMovies.length) {
           console.log("Movies updated, re-rendering calendar...");
           allMovies = finalMovies;
           renderCalendar();
+      } else {
+          console.log("No changes, skipping re-render");
       }
 
       if (selectedMovie) {
@@ -645,7 +659,10 @@ async function loadMovies() {
     }
 
     function renderCalendar() {
+      console.log('=== renderCalendar called ===');
+      console.log('Rendering', allMovies.length, 'movies');
       const grid = document.getElementById("calendar-grid");
+      console.log('Grid element:', grid);
       grid.innerHTML = "";
       
       // Use local date for "today" calculation to avoid UTC shifting
