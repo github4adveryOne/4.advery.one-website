@@ -549,33 +549,25 @@
     
 // ==================== BANDWIDTH OPTIMIZATION: Lazy Image Loading ====================
 async function loadMovieImage(movieId, imgElement) {
-  console.log(`loadMovieImage called for movie ${movieId}`);
-  
   // Check cache first
   if (imageCache.has(movieId)) {
-    console.log(`Cache hit for movie ${movieId}`);
     imgElement.src = imageCache.get(movieId);
     return;
   }
   
   // Show loading state
   imgElement.classList.add('loading');
-  console.log(`Loading image for movie ${movieId}...`);
   
   try {
     const response = await fetch(`/api/n8n/image/${movieId}`);
-    console.log(`Image response for movie ${movieId}:`, response.status, response.ok);
-    
     if (response.ok) {
       const blob = await response.blob();
-      console.log(`Image blob for movie ${movieId}:`, blob.size, 'bytes');
       const imageUrl = URL.createObjectURL(blob);
       imageCache.set(movieId, imageUrl);
       imgElement.src = imageUrl;
       imgElement.classList.remove('loading');
-      console.log(`Image loaded for movie ${movieId}`);
     } else {
-      console.warn(`Image not found for movie ${movieId}:`, response.status);
+      console.warn(`Image not found for movie ${movieId}`);
       imgElement.classList.add('error');
     }
   } catch (error) {
@@ -584,38 +576,25 @@ async function loadMovieImage(movieId, imgElement) {
   }
 }
 async function loadMovies() {
-      console.log('=== loadMovies called ===');
-      console.log('lastUpdateTime:', lastUpdateTime);
-      console.log('allMovies count:', allMovies.length);
-      
       let url = '/api/n8n/get-movies';
       if (lastUpdateTime) {
         // BANDWIDTH OPTIMIZATION: Use incremental updates
         url = `/api/n8n/get-movies-since?since=${encodeURIComponent(lastUpdateTime)}`;
-        console.log('Using get-movies-since with url:', url);
-      } else {
-        console.log('Using get-movies (initial load)');
       }
       
       const res = await fetch(url);
       const newMovies = await res.json();
-      console.log('API returned', newMovies.length, 'movies');
       
       // Handle the response
       if (newMovies.length === 0) {
         // Empty response means no changes since lastUpdateTime
-        console.log('No changes since last update, keeping existing movies');
         return; // Don't change anything
       }
-      
-      // We got movies (could be new, updated, or deleted)
-      console.log('Processing', newMovies.length, 'movies from API');
       
       // Update lastUpdateTime to the latest updated_at
       const timestamps = newMovies.map(m => m.updated_at).filter(t => t);
       if (timestamps.length > 0) {
         lastUpdateTime = timestamps.sort().reverse()[0];
-        console.log('Updated lastUpdateTime to:', lastUpdateTime);
       }
       
       // Create a map of new movies by id for easy lookup
@@ -642,7 +621,6 @@ async function loadMovies() {
           hasChanges = true;
         } else {
           // Movie not in new data - it was deleted
-          console.log('Movie deleted:', existingMovie.id, existingMovie.title);
           hasChanges = true;
           // Don't add to updatedMovies (it's deleted)
         }
@@ -650,18 +628,14 @@ async function loadMovies() {
       
       // Add any remaining new movies (these are brand new)
       for (const [id, movie] of newMoviesMap) {
-        console.log('New movie:', id, movie.title);
         updatedMovies.push(movie);
         hasChanges = true;
       }
       
       // Only update if there were changes
       if (hasChanges) {
-        console.log('Movies changed, updating with', updatedMovies.length, 'movies');
         allMovies = updatedMovies;
         renderCalendar();
-      } else {
-        console.log('No actual changes detected');
       }
 
       if (selectedMovie) {
@@ -671,10 +645,7 @@ async function loadMovies() {
     }
 
     function renderCalendar() {
-      console.log('=== renderCalendar called ===');
-      console.log('Rendering', allMovies.length, 'movies');
       const grid = document.getElementById("calendar-grid");
-      console.log('Grid element:', grid);
       grid.innerHTML = "";
       
       // Use local date for "today" calculation to avoid UTC shifting
@@ -743,31 +714,20 @@ async function loadMovies() {
           // Create image element for lazy loading
           const imgContainer = document.createElement('div');
           imgContainer.className = 'w-full h-full absolute inset-0';
-          imgContainer.style.border = '2px solid red'; // DEBUG: Make container visible
           
           // Always create img element for lazy loading, regardless of posterUrl in metadata
           const imgElement = document.createElement('img');
           imgElement.className = 'w-full h-full object-cover lazy-image';
           imgElement.dataset.movieId = m.id;
           imgElement.alt = m.title;
-          imgElement.style.border = '1px solid blue'; // DEBUG: Make image visible
           
           // Use a placeholder initially, load on visibility
-          // DEBUG: Changed from dark blue (#020617) to bright red (#ff0000) to make it visible
-          imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2ZmMDAwMCIvPjwvc3ZnPg==';
+          imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
           
-          // Load image immediately for now (debugging)
-          console.log(`Loading image immediately for movie ${m.id}`);
-          loadMovieImage(m.id, imgElement);
-          
-          // TODO: Re-enable lazy loading once we confirm it works
-          /*
           // Load image when it becomes visible
           const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-              console.log(`IntersectionObserver for movie ${m.id}:`, entry.isIntersecting ? 'VISIBLE' : 'NOT VISIBLE');
               if (entry.isIntersecting) {
-                console.log(`Movie ${m.id} is now visible, loading image...`);
                 loadMovieImage(m.id, imgElement);
                 observer.unobserve(entry.target);
               }
@@ -776,7 +736,6 @@ async function loadMovies() {
             rootMargin: '50px' // Load images slightly before they enter viewport
           });
           observer.observe(imgElement);
-          */
           
           imgContainer.appendChild(imgElement);
 
@@ -833,8 +792,7 @@ async function loadMovies() {
       const loader = document.getElementById("detail-poster-loading");
       
       // Always try to load image, regardless of posterUrl in metadata
-      // DEBUG: Changed from dark blue (#020617) to bright red (#ff0000) to make it visible
-      poster.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2ZmMDAwMCIvPjwvc3ZnPg==';
+      poster.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
       poster.classList.add('lazy-image', 'loading');
       poster.classList.remove("hidden");
       loader.classList.add("hidden");
@@ -1047,29 +1005,7 @@ lazyLoadingStyle.textContent = `
 `;
 document.head.appendChild(lazyLoadingStyle);
 
-    // DEBUG: Manual test button
-    const debugButton = document.createElement('button');
-    debugButton.textContent = 'DEBUG: Test Image Loading';
-    debugButton.style.position = 'fixed';
-    debugButton.style.top = '10px';
-    debugButton.style.right = '10px';
-    debugButton.style.zIndex = '9999';
-    debugButton.style.padding = '10px';
-    debugButton.style.background = 'red';
-    debugButton.style.color = 'white';
-    debugButton.onclick = () => {
-      console.log('DEBUG: Testing image loading...');
-      const images = document.querySelectorAll('.lazy-image');
-      console.log(`Found ${images.length} lazy images`);
-      images.forEach((img, i) => {
-        const movieId = img.dataset.movieId;
-        console.log(`Image ${i}: movieId=${movieId}, src=${img.src.substring(0, 50)}...`);
-        if (movieId) {
-          loadMovieImage(movieId, img);
-        }
-      });
-    };
-    document.body.appendChild(debugButton);
+
 
     </script>
 </body>
