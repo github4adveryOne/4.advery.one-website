@@ -1,98 +1,100 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Corporate Cinema</title>
+  <title>Corporate Cinema | Programm</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
   <style>
-    body { background: radial-gradient(circle at 20% 20%, #0f172a, #020617 60%); min-height: 100vh; }
-    .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-    .hidden { display: none !important; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    .animate-spin { animation: spin 1s linear infinite; }
-    .modal-backdrop { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); }
+    body { background: #020617; color: #f8fafc; font-family: 'Inter', sans-serif; }
+    .cinema-container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.5rem; }
+    .movie-card { transition: all 0.3s ease; border: 1px solid transparent; }
+    .movie-card:hover { border-color: #22d3ee; transform: translateY(-5px); box-shadow: 0 0 30px rgba(34, 211, 238, 0.1); }
+    .ticket-badge { background: linear-gradient(135deg, #0ea5e9, #22d3ee); color: #020617; font-weight: 800; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .greenlit-pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(34, 211, 238, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); } }
+    .modal { background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(8px); }
   </style>
 </head>
-<body class="text-slate-100 font-sans">
+<body class="min-h-screen">
+  <!-- Login Screen -->
   <div id="auth-screen" class="min-h-screen flex items-center justify-center p-6">
-    <div class="glass max-w-md w-full rounded-[2.5rem] p-10 text-center shadow-2xl">
+    <div class="glass max-w-md w-full p-10 text-center shadow-2xl border-cyan-500/20">
       <div class="flex items-center justify-center gap-3 text-cyan-400 mb-6">
-        <i data-lucide="clapperboard" class="h-12 w-12"></i>
+        <i data-lucide="clapperboard" class="h-16 w-16"></i>
       </div>
-      <h1 class="text-3xl font-black mb-4">Corporate Cinema</h1>
-      <p class="text-slate-400 mb-8">Sign in to pitch and vote on knowledge sharing sessions</p>
-      
-      <button id="login-btn" class="w-full glass px-6 py-4 rounded-2xl flex items-center justify-center gap-4 hover:bg-slate-800/60 transition-all mb-4">
+      <h1 class="text-4xl font-black mb-2 tracking-tight">KINO</h1>
+      <p class="text-slate-400 mb-10 text-lg">Wissensaustausch von Mitarbeitern</p>
+      <button id="login-btn" class="w-full bg-white text-slate-900 px-6 py-4 rounded-2xl flex items-center justify-center gap-4 hover:bg-cyan-50 transition-all font-bold">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#0078d4">
           <path d="M0 0h11.408v11.408H0z" /><path d="M12.592 0H24v11.408H12.592z" /><path d="M0 12.592h11.408V24H0z" /><path d="M12.592 12.592H24V24H12.592z" />
         </svg>
-        <span class="font-bold">Sign in with Microsoft</span>
+        Mit Microsoft anmelden
       </button>
-      
-      <div id="auth-status" class="text-sm text-slate-500 min-h-[20px]">Ready</div>
-      <div id="error-box" class="mt-4 p-4 bg-red-900/20 border border-red-700/30 rounded-xl hidden">
-        <p id="error-msg" class="text-red-200 text-sm"></p>
-      </div>
+      <div id="error-box" class="mt-6 p-4 bg-red-900/30 border border-red-500/30 rounded-xl hidden text-red-200 text-sm"></div>
     </div>
   </div>
 
-  <div id="app-screen" class="hidden min-h-screen p-6 sm:p-12">
-    <header class="max-w-6xl mx-auto mb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+  <!-- App Screen -->
+  <div id="app-screen" class="hidden cinema-container">
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
       <div>
-        <div class="flex items-center gap-3 text-cyan-400 mb-2">
-          <i data-lucide="clapperboard" class="h-8 w-8"></i>
-          <span class="font-bold tracking-widest text-sm uppercase">Corporate Cinema</span>
-        </div>
-        <h1 class="text-4xl sm:text-6xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-500">Knowledge Hub</h1>
-        <p class="text-slate-400 mt-4 text-lg max-w-2xl">Pitch movies, buy tickets, and greenlight what your company watches next.</p>
+        <h1 class="text-5xl font-black tracking-tighter mb-2">AKTUELLES PROGRAMM</h1>
+        <p class="text-slate-400 font-medium">Filme pitchen, Tickets sichern, Premieren freischalten.</p>
       </div>
-      <div class="flex flex-col sm:flex-row lg:flex-col items-stretch lg:items-end gap-3 min-w-[280px]">
-        <div class="glass px-4 py-3 rounded-2xl w-full">
-          <div class="flex items-center justify-between gap-3">
-            <div>
-              <p class="text-xs uppercase tracking-widest text-slate-400">Signed in as</p>
-              <p id="user-name" class="font-semibold text-sm"></p>
-              <p id="user-email" class="text-xs text-slate-400"></p>
-            </div>
-            <button id="logout-btn" class="text-xs text-red-300 border border-red-300/30 rounded-lg px-2 py-1 hover:bg-red-400/10 transition">Logout</button>
+      <div class="flex items-center gap-4">
+        <div class="glass px-5 py-3 flex items-center gap-4">
+          <div class="text-right">
+            <p id="user-name" class="text-sm font-bold leading-none mb-1"></p>
+            <p id="user-email" class="text-[10px] text-slate-500 font-medium"></p>
           </div>
+          <button id="logout-btn" class="text-slate-500 hover:text-red-400 transition"><i data-lucide="log-out" class="h-4 w-4"></i></button>
         </div>
-        <button id="open-pitch-modal" class="glass px-5 py-3 rounded-2xl inline-flex items-center justify-center gap-2 hover:bg-cyan-500/10 transition">
-          <i data-lucide="plus" class="h-4 w-4"></i><span class="text-sm font-semibold">Pitch a Movie</span>
-        </button>
+        <button id="open-pitch-modal" class="bg-cyan-500 text-slate-950 px-6 py-3 rounded-2xl font-black hover:bg-cyan-400 transition shadow-lg shadow-cyan-500/20">FILM PITCHEN</button>
       </div>
     </header>
-    <main class="max-w-6xl mx-auto">
-      <div id="movies-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7"></div>
-    </main>
+
+    <div id="movies-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <!-- Filme werden hier eingefügt -->
+    </div>
   </div>
 
   <!-- Pitch Modal -->
-  <div id="pitch-modal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-6 z-50">
-    <div class="glass max-w-lg w-full rounded-[2.5rem] p-10 shadow-2xl">
-      <h2 class="text-2xl font-bold mb-6">Pitch Your Movie</h2>
-      <form id="pitch-form" class="space-y-4">
-        <div>
-          <label class="block text-xs uppercase tracking-widest text-slate-400 mb-2">Title</label>
-          <input type="text" id="pitch-title" required class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500" />
+  <div id="pitch-modal" class="fixed inset-0 modal hidden z-50 items-center justify-center p-6">
+    <div class="glass max-w-xl w-full p-10 shadow-2xl relative">
+      <button id="close-pitch-modal" class="absolute top-6 right-6 text-slate-500 hover:text-white"><i data-lucide="x"></i></button>
+      <h2 class="text-3xl font-black mb-8 tracking-tight">EINEN FILM PITCHEN</h2>
+      <form id="pitch-form" class="space-y-6">
+        <div class="grid grid-cols-2 gap-6">
+          <div class="col-span-2">
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Filmtitel</label>
+            <input type="text" id="pitch-title" required class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 focus:border-cyan-500 transition outline-none" placeholder="z.B. n8n Workflows meistern" />
+          </div>
+          <div class="col-span-2">
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Beschreibung / Pitch</label>
+            <textarea id="pitch-desc" required rows="3" class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 focus:border-cyan-500 transition outline-none" placeholder="Was lernen die Zuschauer in 10 Minuten?"></textarea>
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Premierendatum & Uhrzeit</label>
+            <input type="datetime-local" id="pitch-premier" required class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 focus:border-cyan-500 transition outline-none" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Greenlight-Schwelle (Mindest-Tickets)</label>
+            <input type="number" id="pitch-threshold" value="5" min="1" class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 focus:border-cyan-500 transition outline-none" />
+          </div>
         </div>
-        <div>
-          <label class="block text-xs uppercase tracking-widest text-slate-400 mb-2">Description</label>
-          <textarea id="pitch-desc" required rows="3" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500"></textarea>
-        </div>
-        <div>
-          <label class="block text-xs uppercase tracking-widest text-slate-400 mb-2">Ticket Threshold</label>
-          <input type="number" id="pitch-threshold" value="5" min="1" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500" />
-        </div>
-        <div class="flex gap-4 pt-4">
-          <button type="button" id="close-pitch-modal" class="flex-1 py-3 text-slate-400 hover:text-white transition">Cancel</button>
-          <button type="submit" class="flex-1 bg-cyan-600 py-3 rounded-xl font-bold hover:bg-cyan-500 transition">Pitch It</button>
-        </div>
+        <button type="submit" class="w-full bg-white text-slate-950 py-4 rounded-2xl font-black hover:bg-cyan-400 transition mt-4">PITCH ABSCHICKEN</button>
       </form>
     </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-10 right-10 glass px-6 py-4 rounded-2xl translate-y-20 opacity-0 transition-all duration-300 z-[100] flex items-center gap-3 border-cyan-500/50">
+    <i data-lucide="info" class="text-cyan-400"></i>
+    <span id="toast-msg" class="font-bold text-sm"></span>
   </div>
 
   <script>
@@ -104,129 +106,133 @@
         redirectUri: window.location.origin + "/cinema/",
         navigateToLoginRequestUrl: false
       },
-      cache: { 
-        cacheLocation: "localStorage",
-        storeAuthStateInCookie: true
-      }
+      cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true }
     };
 
     let msalInstance = null;
     let currentUser = null;
 
     async function init() {
-      console.log("Initializing MSAL...");
       try {
         msalInstance = new msal.PublicClientApplication(msalConfig);
         await msalInstance.initialize();
         
-        // Use a more robust check for MSAL response
-        const resp = await msalInstance.handleRedirectPromise();
-        console.log("Redirect response:", resp);
+        try {
+          const resp = await msalInstance.handleRedirectPromise();
+          if (resp) currentUser = resp.account;
+        } catch (e) { window.location.hash = ""; }
         
-        if (resp && resp.account) {
-            currentUser = resp.account;
-        } else {
-            const accounts = msalInstance.getAllAccounts();
-            if (accounts.length > 0) {
-                currentUser = accounts[0];
-            }
-        }
-
-        if (currentUser) {
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+          currentUser = accounts[0];
           showApp();
         }
-      } catch (e) { 
-        console.error("Initialization error:", e);
-        if (e.errorCode === "hash_empty_error") {
-          console.warn("Detected hash_empty_error, checking for existing session...");
-          const accounts = msalInstance.getAllAccounts();
-          if (accounts.length > 0) {
-            currentUser = accounts[0];
-            showApp();
-          }
-        }
-      }
+      } catch (e) { console.error(e); }
       lucide.createIcons();
     }
 
     function showApp() {
       document.getElementById("auth-screen").classList.add("hidden");
       document.getElementById("app-screen").classList.remove("hidden");
-      document.getElementById("user-name").textContent = currentUser.name;
+      document.getElementById("user-name").textContent = currentUser.name.toUpperCase();
       document.getElementById("user-email").textContent = currentUser.username;
       loadMovies();
     }
 
+    function showToast(msg, type = 'info') {
+      const t = document.getElementById("toast");
+      document.getElementById("toast-msg").textContent = msg;
+      t.classList.remove("translate-y-20", "opacity-0");
+      setTimeout(() => t.classList.add("translate-y-20", "opacity-0"), 3000);
+    }
+
     document.getElementById("login-btn").onclick = async () => {
       try {
-        const loginRequest = {
-          scopes: ["User.Read"],
-          prompt: "select_account"
-        };
-        const resp = await msalInstance.loginPopup(loginRequest);
+        const resp = await msalInstance.loginPopup({ scopes: ["User.Read"] });
         currentUser = resp.account;
         showApp();
       } catch (e) {
-        console.error("Login popup failed, trying redirect", e);
-        try {
-            await msalInstance.loginRedirect({
-                scopes: ["User.Read"],
-                onRedirectNavigate: (url) => {
-                    return true;
-                }
-            });
-        } catch (redirectError) {
-            document.getElementById("error-box").classList.remove("hidden");
-            document.getElementById("error-msg").textContent = redirectError.message;
-        }
+        document.getElementById("error-box").classList.remove("hidden");
+        document.getElementById("error-box").textContent = e.message;
       }
     };
 
     async function loadMovies() {
       const res = await fetch("/api/n8n/get-movies");
       const movies = await res.json();
-      document.getElementById("movies-container").innerHTML = movies.map(m => `
-        <div class="glass p-6 rounded-2xl flex flex-col justify-between">
-          <div>
-            <h3 class="text-xl font-bold mb-2">${m.title}</h3>
-            <p class="text-slate-400 text-sm mb-4">${m.description}</p>
-            <p class="text-xs text-slate-500 mb-4">Dir. ${m.director}</p>
-          </div>
-          <div>
-            <div class="flex justify-between text-xs font-bold mb-2">
-              <span class="text-slate-400">Tickets</span>
-              <span class="${m.sold >= m.threshold ? 'text-cyan-400' : 'text-slate-200'}">${m.sold}/${m.threshold}</span>
+      const grid = document.getElementById("movies-grid");
+      
+      grid.innerHTML = movies.map(m => {
+        const progress = Math.min((m.sold / m.threshold) * 100, 100);
+        const greenlit = m.sold >= m.threshold;
+        const date = new Date(m.premierAt).toLocaleDateString('de-DE', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        
+        return `
+          <div class="glass p-8 movie-card flex flex-col justify-between ${greenlit ? 'greenlit-pulse border-cyan-500/30' : ''}">
+            <div>
+              <div class="flex justify-between items-start mb-6">
+                <span class="ticket-badge">PREMIERE: ${date}</span>
+                ${greenlit ? '<span class="text-cyan-400 font-black text-[10px] tracking-tighter">FREIGESCHALTET</span>' : ''}
+              </div>
+              
+              ${m.posterUrl ? `<img src="${m.posterUrl}" class="w-full h-48 object-cover rounded-xl mb-6 border border-slate-700 shadow-inner" alt="${m.title} Poster" />` : ''}
+              
+              <h3 class="text-2xl font-black mb-3 leading-tight tracking-tight">${m.title.toUpperCase()}</h3>
+              <p class="text-slate-500 text-sm mb-6 font-medium line-clamp-3">${m.description}</p>
+              <div class="flex items-center gap-2 mb-8 text-slate-400">
+                <div class="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-cyan-400">
+                  ${m.director.split(' ').map(n=>n[0]).join('')}
+                </div>
+                <span class="text-xs font-bold uppercase tracking-widest">REGIE: ${m.director}</span>
+              </div>
             </div>
-            <div class="h-1.5 w-full bg-slate-800 rounded-full mb-4 overflow-hidden">
-                <div class="h-full bg-cyan-500" style="width: ${Math.min((m.sold/m.threshold)*100, 100)}%"></div>
+            
+            <div class="space-y-4">
+              <div class="flex justify-between items-end">
+                <div class="flex flex-col">
+                  <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Verkaufte Tickets</span>
+                  <span class="text-2xl font-black ${greenlit ? 'text-cyan-400' : 'text-white'}">${m.sold} <span class="text-slate-600 text-lg">/ ${m.threshold}</span></span>
+                </div>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">UNBEGRENZTE PLÄTZE</span>
+              </div>
+              <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden">
+                <div class="h-full bg-cyan-500 transition-all duration-1000" style="width: ${progress}%"></div>
+              </div>
+              <button onclick="buyTicket(${m.id})" class="w-full py-4 ${greenlit ? 'bg-cyan-500 text-slate-950' : 'bg-white text-slate-950'} rounded-xl font-black tracking-tighter hover:scale-[1.02] transition-all">TICKET SICHERN</button>
             </div>
-            <button onclick="buyTicket(${m.id})" class="w-full py-2 bg-slate-800 border border-slate-700 hover:bg-slate-700 rounded-xl text-sm font-bold transition">Buy Ticket</button>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
       lucide.createIcons();
     }
 
     async function buyTicket(movieId) {
-      await fetch("/api/n8n/buy-ticket", {
+      const res = await fetch("/api/n8n/buy-ticket", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ movieId, user: { name: currentUser.name, username: currentUser.username } })
       });
-      loadMovies();
+      const data = await res.json();
+      if (data.error) {
+        showToast("Du hast bereits ein Ticket für diesen Film.");
+      } else {
+        showToast(data.isGreenlit ? "FREIGESCHALTET! Überprüfe deine E-Mails." : "Ticket gesichert!");
+        loadMovies();
+      }
     }
 
-    // Modal logic
+    // Modal
     const pitchModal = document.getElementById("pitch-modal");
     document.getElementById("open-pitch-modal").onclick = () => pitchModal.classList.replace("hidden", "flex");
     document.getElementById("close-pitch-modal").onclick = () => pitchModal.classList.replace("flex", "hidden");
-
+    
     document.getElementById("pitch-form").onsubmit = async (e) => {
       e.preventDefault();
       const payload = {
         title: document.getElementById("pitch-title").value,
         description: document.getElementById("pitch-desc").value,
         threshold: parseInt(document.getElementById("pitch-threshold").value),
+        premierAt: document.getElementById("pitch-premier").value,
         director: currentUser.name,
         directorEmail: currentUser.username
       };
@@ -237,6 +243,7 @@
       });
       pitchModal.classList.replace("flex", "hidden");
       document.getElementById("pitch-form").reset();
+      showToast("Pitch eingereicht!");
       loadMovies();
     };
 
