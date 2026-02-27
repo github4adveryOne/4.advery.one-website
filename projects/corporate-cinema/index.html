@@ -594,9 +594,34 @@ async function loadMovies() {
       }
       
       // Check if movies have actually changed to prevent flickering
-      if (JSON.stringify(newMovies) !== JSON.stringify(allMovies)) {
+      let moviesChanged = false;
+      
+      // Merge new movies with existing ones to preserve posterUrl
+      const mergedMovies = [...allMovies];
+      
+      newMovies.forEach(newMovie => {
+        const existingIndex = mergedMovies.findIndex(m => m.id === newMovie.id);
+        if (existingIndex >= 0) {
+          // Update existing movie but preserve posterUrl if not in new data
+          if (!newMovie.posterUrl && mergedMovies[existingIndex].posterUrl) {
+            newMovie.posterUrl = mergedMovies[existingIndex].posterUrl;
+          }
+          mergedMovies[existingIndex] = newMovie;
+          moviesChanged = true;
+        } else {
+          // New movie
+          mergedMovies.push(newMovie);
+          moviesChanged = true;
+        }
+      });
+      
+      // Remove movies that are no longer in newMovies
+      const newMovieIds = newMovies.map(m => m.id);
+      const filteredMovies = mergedMovies.filter(m => newMovieIds.includes(m.id));
+      
+      if (moviesChanged || filteredMovies.length !== allMovies.length) {
           console.log("Movies updated, re-rendering calendar...");
-          allMovies = newMovies;
+          allMovies = filteredMovies;
           renderCalendar();
       }
 
@@ -677,32 +702,27 @@ async function loadMovies() {
           const imgContainer = document.createElement('div');
           imgContainer.className = 'w-full h-full absolute inset-0';
           
-          let imgElement;
-          if (m.posterUrl) {
-            imgElement = document.createElement('img');
-            imgElement.className = 'w-full h-full object-cover lazy-image';
-            imgElement.dataset.movieId = m.id;
-            imgElement.alt = m.title;
-            
-            // Use a placeholder initially, load on visibility
-            imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
-            
-            // Load image when it becomes visible
-            const observer = new IntersectionObserver((entries) => {
-              entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                  loadMovieImage(m.id, imgElement);
-                  observer.unobserve(entry.target);
-                }
-              });
+          // Always create img element for lazy loading, regardless of posterUrl in metadata
+          const imgElement = document.createElement('img');
+          imgElement.className = 'w-full h-full object-cover lazy-image';
+          imgElement.dataset.movieId = m.id;
+          imgElement.alt = m.title;
+          
+          // Use a placeholder initially, load on visibility
+          imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
+          
+          // Load image when it becomes visible
+          const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting) {
+                loadMovieImage(m.id, imgElement);
+                observer.unobserve(entry.target);
+              }
             });
-            observer.observe(imgElement);
-            
-            imgContainer.appendChild(imgElement);
-          } else {
-            // No poster yet, show loading shimmer
-            imgContainer.innerHTML = '<div class="w-full h-full poster-loading-shimmer flex items-center justify-center opacity-30"><i data-lucide="sparkles" class="h-6 w-6"></i></div>';
-          }
+          });
+          observer.observe(imgElement);
+          
+          imgContainer.appendChild(imgElement);
 
           movieEl.innerHTML = `
               ${statusOverlay}
@@ -755,19 +775,15 @@ async function loadMovies() {
       
       const poster = document.getElementById("detail-poster");
       const loader = document.getElementById("detail-poster-loading");
-      if (m.posterUrl) {
-        // Clear any previous image
-        poster.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
-        poster.classList.add('lazy-image', 'loading');
-        poster.classList.remove("hidden");
-        loader.classList.add("hidden");
-        
-        // Load the image
-        loadMovieImage(m.id, poster);
-      } else {
-        poster.classList.add("hidden");
-        loader.classList.remove("hidden");
-      }
+      
+      // Always try to load image, regardless of posterUrl in metadata
+      poster.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
+      poster.classList.add('lazy-image', 'loading');
+      poster.classList.remove("hidden");
+      loader.classList.add("hidden");
+      
+      // Load the image
+      loadMovieImage(m.id, poster);
 
       const greenlitBadge = document.getElementById("greenlight-badge");
       if (greenlitBadge) {
