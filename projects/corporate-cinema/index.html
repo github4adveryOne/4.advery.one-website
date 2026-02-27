@@ -624,9 +624,9 @@ async function loadMovies() {
           newMoviesMap.delete(existingMovie.id); // Remove from map so we don't add it again
           hasChanges = true;
         } else {
-          // Movie not in new data - it was deleted
-          hasChanges = true;
-          // Don't add to updatedMovies (it's deleted)
+          // Movie not in new data - it hasn't changed OR was deleted
+          // Keep it (if it was deleted, API would have sent it with isCancelled=1)
+          updatedMovies.push(existingMovie);
         }
       }
       
