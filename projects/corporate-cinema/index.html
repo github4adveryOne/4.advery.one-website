@@ -617,7 +617,10 @@ async function loadMovies() {
           if (!newMovie.posterUrl && existingMovie.posterUrl) {
             newMovie.posterUrl = existingMovie.posterUrl;
           }
-          updatedMovies.push(newMovie);
+          // Only add if not cancelled
+          if (!newMovie.isCancelled) {
+            updatedMovies.push(newMovie);
+          }
           newMoviesMap.delete(existingMovie.id); // Remove from map so we don't add it again
           hasChanges = true;
         } else {
@@ -629,8 +632,11 @@ async function loadMovies() {
       
       // Add any remaining new movies (these are brand new)
       for (const [id, movie] of newMoviesMap) {
-        updatedMovies.push(movie);
-        hasChanges = true;
+        // Only add if not cancelled
+        if (!movie.isCancelled) {
+          updatedMovies.push(movie);
+          hasChanges = true;
+        }
       }
       
       // Only update if there were changes
@@ -641,7 +647,12 @@ async function loadMovies() {
 
       if (selectedMovie) {
         const updated = allMovies.find(m => m.id === selectedMovie.id);
-        if (updated) updateDetailUI(updated);
+        if (updated) {
+          updateDetailUI(updated);
+        } else {
+          // Movie was cancelled or deleted, close detail view
+          closeDetail();
+        }
       }
     }
 
