@@ -3,250 +3,631 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Corporate Cinema | Programm</title>
+  <title>Corporate Cinema | Programmplaner</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
   <style>
     body { background: #020617; color: #f8fafc; font-family: 'Inter', sans-serif; }
-    .cinema-container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-    .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.5rem; }
-    .movie-card { transition: all 0.3s ease; border: 1px solid transparent; }
-    .movie-card:hover { border-color: #22d3ee; transform: translateY(-5px); box-shadow: 0 0 30px rgba(34, 211, 238, 0.1); }
-    .ticket-badge { background: linear-gradient(135deg, #0ea5e9, #22d3ee); color: #020617; font-weight: 800; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
-    .greenlit-pulse { animation: pulse 2s infinite; }
-    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(34, 211, 238, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); } }
-    .modal { background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(8px); }
+    .glass { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .modal { background: rgba(2, 6, 23, 0.96); backdrop-filter: blur(20px); z-index: 100; }
+    
+    /* Calendar Grid Responsiveness */
+    .calendar-grid { 
+        display: grid; 
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1px;
+        background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .calendar-day { 
+        background: #020617;
+        min-height: 250px; 
+        transition: all 0.3s ease;
+        padding: 1rem;
+    }
+    
+    .calendar-day.today { background: rgba(34, 211, 238, 0.03); }
+    
+    /* Movie Mini Card */
+    .mini-movie {
+        position: relative;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        aspect-ratio: 2/3;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .mini-movie:hover { transform: scale(1.05); z-index: 10; border-color: #22d3ee; box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
+    
+    .mini-movie-info {
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        padding: 0.5rem;
+        background: linear-gradient(to top, rgba(2, 6, 23, 0.95), transparent);
+    }
+    
+    .mini-movie.greenlit { border-color: #22d3ee; }
+    .mini-movie.greenlit::after {
+        content: 'FREIGEGEBEN';
+        position: absolute;
+        top: 0.5rem; right: 0.5rem;
+        background: #22d3ee; color: #020617;
+        font-size: 8px; font-weight: 900;
+        padding: 2px 4px; border-radius: 4px;
+        letter-spacing: 0.05em;
+    }
+
+    .poster-loading-shimmer {
+        background: linear-gradient(90deg, #0f172a 25%, #1e293b 50%, #0f172a 75%);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+    /* Fix for datetime-local icon color in some browsers */
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+    }
+    
+    .status-badge {
+        font-size: 8px;
+        font-weight: 900;
+        padding: 2px 6px;
+        border-radius: 4px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .status-processing { background: #94a3b8; color: #020617; }
+    .status-failed { background: #ef4444; color: #ffffff; }
+    
+    /* Animated background */
+    body::before {
+        content: "";
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.05) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: -1;
+    }
   </style>
 </head>
 <body class="min-h-screen">
-  <!-- Login Screen -->
+  <!-- Auth Screen -->
   <div id="auth-screen" class="min-h-screen flex items-center justify-center p-6">
-    <div class="glass max-w-md w-full p-10 text-center shadow-2xl border-cyan-500/20">
-      <div class="flex items-center justify-center gap-3 text-cyan-400 mb-6">
-        <i data-lucide="clapperboard" class="h-16 w-16"></i>
-      </div>
-      <h1 class="text-4xl font-black mb-2 tracking-tight">KINO</h1>
-      <p class="text-slate-400 mb-10 text-lg">Wissensaustausch von Mitarbeitern</p>
-      <button id="login-btn" class="w-full bg-white text-slate-900 px-6 py-4 rounded-2xl flex items-center justify-center gap-4 hover:bg-cyan-50 transition-all font-bold">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#0078d4">
-          <path d="M0 0h11.408v11.408H0z" /><path d="M12.592 0H24v11.408H12.592z" /><path d="M0 12.592h11.408V24H0z" /><path d="M12.592 12.592H24V24H12.592z" />
-        </svg>
-        Mit Microsoft anmelden
+    <div class="glass max-w-md w-full p-10 text-center rounded-[2.5rem] shadow-2xl">
+      <i data-lucide="clapperboard" class="h-16 w-16 text-cyan-400 mx-auto mb-6"></i>
+      <h1 class="text-4xl font-black mb-2 tracking-tight uppercase">Corporate Cinema</h1>
+      <p class="text-slate-400 mb-10 text-lg italic">Wissen ist das neue Blockbuster-Kino.</p>
+      <button id="login-btn" class="w-full bg-white text-slate-900 px-6 py-4 rounded-2xl flex items-center justify-center gap-4 hover:bg-cyan-50 transition-all font-bold uppercase tracking-widest text-sm shadow-xl shadow-cyan-500/10">
+        Mitarbeiter-Login
       </button>
-      <div id="error-box" class="mt-6 p-4 bg-red-900/30 border border-red-500/30 rounded-xl hidden text-red-200 text-sm"></div>
     </div>
   </div>
 
-  <!-- App Screen -->
-  <div id="app-screen" class="hidden cinema-container">
-    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
-      <div>
-        <h1 class="text-5xl font-black tracking-tighter mb-2">AKTUELLES PROGRAMM</h1>
-        <p class="text-slate-400 font-medium">Filme pitchen, Tickets sichern, Premieren freischalten.</p>
-      </div>
-      <div class="flex items-center gap-4">
-        <div class="glass px-5 py-3 flex items-center gap-4">
-          <div class="text-right">
-            <p id="user-name" class="text-sm font-bold leading-none mb-1"></p>
-            <p id="user-email" class="text-[10px] text-slate-500 font-medium"></p>
-          </div>
-          <button id="logout-btn" class="text-slate-500 hover:text-red-400 transition"><i data-lucide="log-out" class="h-4 w-4"></i></button>
+  <!-- Main App -->
+  <div id="app-screen" class="hidden min-h-screen">
+    <nav class="border-b border-slate-800 bg-slate-950/50 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-[1600px] mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <i data-lucide="film" class="h-8 w-8 text-cyan-500"></i>
+                <div>
+                    <h2 class="font-black uppercase tracking-tighter leading-none">Corporate Cinema</h2>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Programmübersicht</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800">
+                    <span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+                    <span id="user-display" class="text-xs font-black uppercase text-slate-300"></span>
+                </div>
+                <button id="logout-btn" class="text-slate-500 hover:text-red-400 transition"><i data-lucide="log-out" class="h-5 w-5"></i></button>
+            </div>
         </div>
-        <button id="open-pitch-modal" class="bg-cyan-500 text-slate-950 px-6 py-3 rounded-2xl font-black hover:bg-cyan-400 transition shadow-lg shadow-cyan-500/20">FILM PITCHEN</button>
-      </div>
-    </header>
+    </nav>
 
-    <div id="movies-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      <!-- Filme werden hier eingefügt -->
+    <main class="max-w-[1600px] mx-auto p-6 lg:p-10">
+        <section class="mb-12 flex flex-col lg:flex-row justify-between items-end gap-8">
+            <div class="max-w-3xl">
+                <h1 class="text-6xl font-black tracking-tighter mb-4 uppercase leading-none">Filmreife <span class="text-cyan-500">Vorträge.</span></h1>
+                <p class="text-slate-400 text-lg leading-relaxed">Entdecke das Wissen deiner Kollegen. Jede Präsentation ist ein Unikat. Sichere dir dein Ticket, um die Premiere freizuschalten. Ohne genug Zuschauer kein Kinostart!</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-4">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500">Zeitraum wählen</label>
+                    <div class="flex glass p-1 rounded-xl">
+                        <button onclick="setDays(7)" id="btn-7" class="px-4 py-2 rounded-lg text-xs font-black uppercase transition">7 Tage</button>
+                        <button onclick="setDays(14)" id="btn-14" class="px-4 py-2 rounded-lg text-xs font-black uppercase transition">14 Tage</button>
+                        <button onclick="setDays(30)" id="btn-30" class="px-4 py-2 rounded-lg text-xs font-black uppercase transition">30 Tage</button>
+                    </div>
+                </div>
+                <button id="open-pitch-modal" class="bg-cyan-500 text-slate-950 px-8 py-5 rounded-2xl font-black hover:bg-cyan-400 transition shadow-lg shadow-cyan-500/20 uppercase tracking-tight text-sm">
+                    Eigenen Film Pitchen
+                </button>
+            </div>
+        </section>
+
+        <!-- Calendar Grid -->
+        <div id="calendar-grid" class="calendar-grid rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-3xl">
+            <!-- Days generated by JS -->
+        </div>
+    </main>
+  </div>
+
+  <!-- Detail Modal -->
+  <div id="detail-modal" class="fixed inset-0 modal hidden items-center justify-center p-4 md:p-6 overflow-y-auto">
+    <div class="glass max-w-4xl w-full rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl flex flex-col md:flex-row relative border-slate-700/50 my-auto">
+      <button onclick="closeDetail()" class="absolute top-4 right-4 md:top-6 md:right-6 p-2 bg-black/50 hover:bg-black rounded-full text-white z-20 transition"><i data-lucide="x"></i></button>
+      
+      <div class="w-full md:w-5/12 h-64 md:h-auto poster-placeholder relative shrink-0">
+        <img id="detail-poster" src="" class="w-full h-full object-cover hidden" />
+        <div id="detail-poster-loading" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3">
+            <i data-lucide="loader" class="h-10 w-10 animate-spin text-cyan-500"></i>
+            <span class="text-[10px] font-black uppercase tracking-widest italic">KI erstellt Filmplakat...</span>
+        </div>
+      </div>
+
+      <div class="p-6 md:p-12 flex-1 flex flex-col justify-between bg-slate-900/60 overflow-y-auto">
+        <div>
+          <div class="flex justify-between items-start mb-4 md:mb-6">
+            <div class="flex items-center gap-3">
+                <span class="bg-cyan-500/10 text-cyan-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-cyan-500/20">Wissenstransfer</span>
+                <span id="greenlight-badge" class="hidden bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-emerald-500/20">FREIGEGEBEN</span>
+            </div>
+            <div id="owner-actions" class="hidden">
+                <button id="delete-btn" class="flex items-center gap-2 text-red-500 hover:text-red-400 font-black text-[10px] transition uppercase tracking-widest">
+                    <i data-lucide="trash-2" class="h-4 w-4"></i> Film absagen
+                </button>
+            </div>
+          </div>
+          <h2 id="detail-title" class="text-3xl md:text-5xl font-black mb-4 md:mb-6 tracking-tighter leading-[0.9]"></h2>
+          <p id="detail-desc" class="text-slate-400 leading-relaxed mb-6 md:mb-10 text-base md:text-lg"></p>
+          
+          <div class="grid grid-cols-2 gap-4 md:gap-8 mb-6 md:mb-10 border-t border-slate-800 pt-6 md:pt-8">
+            <div>
+                <span class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Regie</span>
+                <div class="flex items-center gap-3">
+                    <div id="detail-avatar" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-cyan-500"></div>
+                    <span id="detail-director" class="font-bold text-white uppercase text-sm"></span>
+                </div>
+            </div>
+            <div>
+                <span class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Kinostart</span>
+                <span id="detail-date" class="font-bold text-white uppercase text-sm"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+            <div class="glass p-6 rounded-3xl border-slate-700/30">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Zuschauer-Resonanz</span>
+                    <span id="detail-ticket-count" class="text-sm font-black text-cyan-400"></span>
+                </div>
+                <div class="h-3 w-full bg-slate-950 rounded-full overflow-hidden mb-4 p-0.5 border border-slate-800">
+                    <div id="detail-progress" class="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                </div>
+                <p id="greenlight-hint" class="text-[10px] text-slate-500 font-medium">Sobald die Schwelle erreicht ist, wird die Premiere automatisch als Teams-Meeting geplant.</p>
+            </div>
+            <button id="buy-btn" class="w-full py-6 bg-cyan-500 text-slate-950 rounded-[1.5rem] font-black tracking-tight hover:bg-cyan-400 hover:scale-[1.01] transition-all uppercase text-lg shadow-xl shadow-cyan-900/20">Ticket sichern</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- Pitch Modal -->
-  <div id="pitch-modal" class="fixed inset-0 modal hidden z-50 items-center justify-center p-6">
-    <div class="glass max-w-xl w-full p-10 shadow-2xl relative">
-      <button id="close-pitch-modal" class="absolute top-6 right-6 text-slate-500 hover:text-white"><i data-lucide="x"></i></button>
-      <h2 class="text-3xl font-black mb-8 tracking-tight">EINEN FILM PITCHEN</h2>
-      <form id="pitch-form" class="space-y-6">
-        <div class="grid grid-cols-2 gap-6">
-          <div class="col-span-2">
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Filmtitel</label>
-            <input type="text" id="pitch-title" required class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 focus:border-cyan-500 transition outline-none" placeholder="z.B. n8n Workflows meistern" />
-          </div>
-          <div class="col-span-2">
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Beschreibung / Pitch</label>
-            <textarea id="pitch-desc" required rows="3" class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 focus:border-cyan-500 transition outline-none" placeholder="Was lernen die Zuschauer in 10 Minuten?"></textarea>
-          </div>
+  <div id="pitch-modal" class="fixed inset-0 modal hidden items-center justify-center p-6">
+    <div class="glass max-w-xl w-full p-12 rounded-[3.5rem] shadow-2xl relative border-cyan-500/20">
+      <button id="close-pitch-modal" class="absolute top-8 right-8 text-slate-500 hover:text-white"><i data-lucide="x"></i></button>
+      <div class="mb-10">
+          <h2 class="text-4xl font-black mb-2 tracking-tight uppercase">Film-Pitch einreichen</h2>
+          <p class="text-slate-400 text-sm">Was ist das Thema deines 10-Minuten-Blockbusters?</p>
+      </div>
+      <form id="pitch-form" class="space-y-8">
+        <div class="space-y-6">
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Premierendatum & Uhrzeit</label>
-            <input type="datetime-local" id="pitch-premier" required class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 focus:border-cyan-500 transition outline-none" />
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 ml-1">Handlung / Kernbotschaft</label>
+            <textarea id="pitch-desc" required rows="4" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 focus:border-cyan-500 transition outline-none text-white leading-relaxed" placeholder="Beschreibe kurz dein Thema. Unsere KI erstellt daraus einen Filmtitel und ein Plakat."></textarea>
           </div>
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Greenlight-Schwelle (Mindest-Tickets)</label>
-            <input type="number" id="pitch-threshold" value="5" min="1" class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 focus:border-cyan-500 transition outline-none" />
+          <div class="grid grid-cols-2 gap-6">
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 ml-1">Premiere Datum</label>
+              <input type="date" id="pitch-date" required class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 focus:border-cyan-500 transition outline-none text-white text-sm [color-scheme:dark]" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 ml-1">Uhrzeit</label>
+              <input type="time" id="pitch-time" required min="10:00" max="15:59" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 focus:border-cyan-500 transition outline-none text-white text-sm [color-scheme:dark]" />
+            </div>
+            <div class="col-span-2">
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 ml-1">Ticket-Limit</label>
+              <input type="number" id="pitch-threshold" value="5" min="1" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 focus:border-cyan-500 transition outline-none text-white" />
+            </div>
           </div>
         </div>
-        <button type="submit" class="w-full bg-white text-slate-950 py-4 rounded-2xl font-black hover:bg-cyan-400 transition mt-4">PITCH ABSCHICKEN</button>
+        <button type="submit" id="submit-pitch" class="w-full bg-white text-slate-950 py-5 rounded-2xl font-black hover:bg-cyan-400 transition uppercase tracking-widest text-sm shadow-xl shadow-cyan-900/20">Projekt Veröffentlichen</button>
       </form>
     </div>
   </div>
 
-  <!-- Toast -->
-  <div id="toast" class="fixed bottom-10 right-10 glass px-6 py-4 rounded-2xl translate-y-20 opacity-0 transition-all duration-300 z-[100] flex items-center gap-3 border-cyan-500/50">
-    <i data-lucide="info" class="text-cyan-400"></i>
-    <span id="toast-msg" class="font-bold text-sm"></span>
+  <!-- AI Modal -->
+  <div id="ai-modal" class="fixed inset-0 modal hidden items-center justify-center p-6">
+    <div class="glass max-w-md w-full p-12 rounded-[3.5rem] shadow-2xl text-center border-cyan-500/20">
+      <div class="flex justify-center mb-8"><div class="bg-cyan-500/20 p-6 rounded-full shadow-lg"><i data-lucide="sparkles" class="h-12 w-12 text-cyan-400"></i></div></div>
+      <h2 class="text-xs font-black uppercase tracking-[0.5em] text-cyan-500 mb-4">Script-Check abgeschlossen</h2>
+      <p class="text-slate-400 text-sm mb-8 px-4">Unsere KI-Filmagentur hat basierend auf deiner Beschreibung folgenden Titel festgelegt:</p>
+      <h3 id="ai-generated-title" class="text-4xl font-black italic mb-12 tracking-tighter text-white uppercase leading-[0.85]"></h3>
+      <button id="close-ai-modal" class="w-full bg-white text-black py-5 rounded-2xl font-black hover:bg-cyan-400 transition uppercase text-xs tracking-widest">In den Spielplan aufnehmen</button>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-10 right-10 glass px-6 py-4 rounded-2xl translate-y-20 opacity-0 transition-all duration-300 z-[200] flex items-center gap-3 border-cyan-500/50">
+    <i data-lucide="info" class="text-cyan-400"></i><span id="toast-msg" class="font-bold text-sm text-white"></span>
   </div>
 
   <script>
     const TENANT_ID = "b2057218-c748-4a02-a220-1309d3034ba1";
     const msalConfig = {
-      auth: {
-        clientId: "6ff61b4c-46af-4452-b405-5b359e83c843",
-        authority: `https://login.microsoftonline.com/${TENANT_ID}`,
-        redirectUri: window.location.origin + "/cinema/",
-        navigateToLoginRequestUrl: false
+      auth: { 
+        clientId: "6ff61b4c-46af-4452-b405-5b359e83c843", 
+        authority: `https://login.microsoftonline.com/${TENANT_ID}`, 
+        redirectUri: window.location.origin + "/cinema/", 
+        navigateToLoginRequestUrl: false 
       },
-      cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true }
+      cache: { 
+        cacheLocation: "localStorage", 
+        storeAuthStateInCookie: true 
+      }
     };
-
-    let msalInstance = null;
-    let currentUser = null;
+    let msalInstance, currentUser, allMovies = [], selectedMovie = null, calendarDays = 7;
 
     async function init() {
+      console.log("MSAL init starting...");
       try {
         msalInstance = new msal.PublicClientApplication(msalConfig);
         await msalInstance.initialize();
         
-        try {
-          const resp = await msalInstance.handleRedirectPromise();
-          if (resp) currentUser = resp.account;
-        } catch (e) { window.location.hash = ""; }
+        // Initial load of movies while auth is initializing to speed up perceived performance
+        loadMovies();
         
+        // Enhanced hash_empty_error handling
+        try {
+            const resp = await msalInstance.handleRedirectPromise();
+            if (resp) {
+                console.log("Redirect detected:", resp);
+                currentUser = resp.account;
+                // Clear hash after successful redirect processing
+                if (window.location.hash) {
+                    window.location.hash = "";
+                }
+            }
+        } catch (hashError) {
+            console.warn("Caught hash_empty_error, proceeding to cache check...", hashError);
+            // Clear any problematic hash fragments
+            if (window.location.hash) {
+                console.log("Clearing problematic hash:", window.location.hash);
+                window.location.hash = "";
+            }
+        }
+        
+        // Check cache for existing accounts
         const accounts = msalInstance.getAllAccounts();
+        console.log("All accounts in cache:", accounts);
+        
         if (accounts.length > 0) {
           currentUser = accounts[0];
+          console.log("Active user from cache:", currentUser.username);
+          showApp();
+        } else if (currentUser) {
           showApp();
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { 
+        console.error("Critical MSAL init error:", e);
+        // Show error to user
+        showToast("Login fehlgeschlagen: " + e.message);
+      }
       lucide.createIcons();
     }
 
     function showApp() {
       document.getElementById("auth-screen").classList.add("hidden");
       document.getElementById("app-screen").classList.remove("hidden");
-      document.getElementById("user-name").textContent = currentUser.name.toUpperCase();
-      document.getElementById("user-email").textContent = currentUser.username;
-      loadMovies();
+      document.getElementById("user-display").textContent = currentUser.name;
+      setDays(calendarDays);
+      setInterval(loadMovies, 15000);
     }
 
-    function showToast(msg, type = 'info') {
-      const t = document.getElementById("toast");
-      document.getElementById("toast-msg").textContent = msg;
-      t.classList.remove("translate-y-20", "opacity-0");
-      setTimeout(() => t.classList.add("translate-y-20", "opacity-0"), 3000);
+    function setDays(n) {
+        console.log("Setting days to:", n);
+        calendarDays = n;
+        [7, 14, 30].forEach(d => {
+            const btn = document.getElementById(`btn-${d}`);
+            if (btn) {
+                if (d === n) {
+                    btn.classList.add('bg-cyan-500', 'text-slate-950');
+                    btn.classList.remove('text-slate-500', 'hover:text-white');
+                } else {
+                    btn.classList.remove('bg-cyan-500', 'text-slate-950');
+                    btn.classList.add('text-slate-500', 'hover:text-white');
+                }
+            }
+        });
+        renderCalendar();
     }
-
-    document.getElementById("login-btn").onclick = async () => {
-      try {
-        const resp = await msalInstance.loginPopup({ scopes: ["User.Read"] });
-        currentUser = resp.account;
-        showApp();
-      } catch (e) {
-        document.getElementById("error-box").classList.remove("hidden");
-        document.getElementById("error-box").textContent = e.message;
-      }
-    };
 
     async function loadMovies() {
       const res = await fetch("/api/n8n/get-movies");
-      const movies = await res.json();
-      const grid = document.getElementById("movies-grid");
-      
-      grid.innerHTML = movies.map(m => {
-        const progress = Math.min((m.sold / m.threshold) * 100, 100);
-        const greenlit = m.sold >= m.threshold;
-        const date = new Date(m.premierAt).toLocaleDateString('de-DE', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-        
-        return `
-          <div class="glass p-8 movie-card flex flex-col justify-between ${greenlit ? 'greenlit-pulse border-cyan-500/30' : ''}">
-            <div>
-              <div class="flex justify-between items-start mb-6">
-                <span class="ticket-badge">PREMIERE: ${date}</span>
-                ${greenlit ? '<span class="text-cyan-400 font-black text-[10px] tracking-tighter">FREIGESCHALTET</span>' : ''}
-              </div>
-              
-              ${m.posterUrl ? `<img src="${m.posterUrl}" class="w-full h-48 object-cover rounded-xl mb-6 border border-slate-700 shadow-inner" alt="${m.title} Poster" />` : ''}
-              
-              <h3 class="text-2xl font-black mb-3 leading-tight tracking-tight">${m.title.toUpperCase()}</h3>
-              <p class="text-slate-500 text-sm mb-6 font-medium line-clamp-3">${m.description}</p>
-              <div class="flex items-center gap-2 mb-8 text-slate-400">
-                <div class="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-cyan-400">
-                  ${m.director.split(' ').map(n=>n[0]).join('')}
-                </div>
-                <span class="text-xs font-bold uppercase tracking-widest">REGIE: ${m.director}</span>
-              </div>
-            </div>
-            
-            <div class="space-y-4">
-              <div class="flex justify-between items-end">
-                <div class="flex flex-col">
-                  <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Verkaufte Tickets</span>
-                  <span class="text-2xl font-black ${greenlit ? 'text-cyan-400' : 'text-white'}">${m.sold} <span class="text-slate-600 text-lg">/ ${m.threshold}</span></span>
-                </div>
-                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">UNBEGRENZTE PLÄTZE</span>
-              </div>
-              <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden">
-                <div class="h-full bg-cyan-500 transition-all duration-1000" style="width: ${progress}%"></div>
-              </div>
-              <button onclick="buyTicket(${m.id})" class="w-full py-4 ${greenlit ? 'bg-cyan-500 text-slate-950' : 'bg-white text-slate-950'} rounded-xl font-black tracking-tighter hover:scale-[1.02] transition-all">TICKET SICHERN</button>
-            </div>
-          </div>
-        `;
-      }).join("");
-      lucide.createIcons();
-    }
-
-    async function buyTicket(movieId) {
-      const res = await fetch("/api/n8n/buy-ticket", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ movieId, user: { name: currentUser.name, username: currentUser.username } })
-      });
-      const data = await res.json();
-      if (data.error) {
-        showToast("Du hast bereits ein Ticket für diesen Film.");
-      } else {
-        showToast(data.isGreenlit ? "FREIGESCHALTET! Überprüfe deine E-Mails." : "Ticket gesichert!");
-        loadMovies();
+      allMovies = await res.json();
+      renderCalendar();
+      if (selectedMovie) {
+        const updated = allMovies.find(m => m.id === selectedMovie.id);
+        if (updated) updateDetailUI(updated);
       }
     }
 
-    // Modal
-    const pitchModal = document.getElementById("pitch-modal");
-    document.getElementById("open-pitch-modal").onclick = () => pitchModal.classList.replace("hidden", "flex");
-    document.getElementById("close-pitch-modal").onclick = () => pitchModal.classList.replace("flex", "hidden");
-    
+    function renderCalendar() {
+      const grid = document.getElementById("calendar-grid");
+      grid.innerHTML = "";
+      
+      // Use local date for "today" calculation to avoid UTC shifting
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      // Animation stagger
+      let movieCount = 0;
+      let addedDays = 0;
+      let currentOffset = 0;
+
+      while (addedDays < calendarDays) {
+        const day = new Date(today);
+        day.setDate(today.getDate() + currentOffset);
+        currentOffset++;
+
+        const isWeekend = [0, 6].includes(day.getDay());
+        if (isWeekend) continue; // Skip weekends entirely
+        
+        // Format local YYYY-MM-DD for comparison
+        const offset = day.getTimezoneOffset() * 60000;
+        const dayStr = new Date(day.getTime() - offset).toISOString().split('T')[0];
+        
+        const dayMovies = allMovies.filter(m => {
+            // Compare only the date part
+            const movieDate = m.premierAt.split('T')[0];
+            return movieDate === dayStr;
+        });
+        
+        const isToday = dayStr === now.toISOString().split('T')[0];
+
+        const dayEl = document.createElement("div");
+        dayEl.className = `calendar-day ${isToday ? 'today' : ''}`;
+        dayEl.innerHTML = `<div class="mb-4 flex items-center justify-between"><span class="text-[10px] font-black ${isToday ? 'text-cyan-400 underline underline-offset-4' : 'text-slate-600'} uppercase">${day.toLocaleDateString('de-DE', {weekday:'short'})} ${day.getDate()}. ${day.toLocaleDateString('de-DE', {month:'short'})}</span></div>`;
+        
+        if (dayMovies.length === 0) {
+            const emptyHint = document.createElement("div");
+            emptyHint.className = "h-full flex items-center justify-center border border-dashed border-slate-800/50 rounded-2xl opacity-20 hover:opacity-100 hover:border-cyan-500/50 cursor-pointer transition-all";
+            emptyHint.innerHTML = '<i data-lucide="plus" class="h-4 w-4"></i>';
+            emptyHint.onclick = () => {
+                // Set default date to this day
+                const offset = day.getTimezoneOffset() * 60000;
+                const localDate = new Date(day.getTime() - offset).toISOString().split('T')[0];
+                
+                document.getElementById("pitch-date").value = localDate;
+                document.getElementById("pitch-time").value = "10:00";
+                
+                document.getElementById("pitch-modal").classList.remove("hidden");
+                document.getElementById("pitch-modal").classList.add("flex");
+            };
+            dayEl.appendChild(emptyHint);
+        }
+
+        dayMovies.forEach(m => {
+          const greenlit = m.sold >= m.threshold;
+          const movieEl = document.createElement("div");
+          movieEl.className = `mini-movie ${greenlit ? 'greenlit' : ''}`;
+          
+          let statusOverlay = '';
+          if (m.posterStatus === 'processing') {
+              statusOverlay = '<div class="absolute inset-0 bg-black/60 flex items-center justify-center z-10"><span class="status-badge status-processing animate-pulse">Wird erstellt...</span></div>';
+          } else if (m.posterStatus === 'failed') {
+              statusOverlay = '<div class="absolute inset-0 bg-black/60 flex items-center justify-center z-10"><span class="status-badge status-failed">Fehler</span></div>';
+          }
+
+          movieEl.innerHTML = `
+              ${statusOverlay}
+              ${m.posterUrl ? `<img src="${m.posterUrl}" class="w-full h-full object-cover" />` : `<div class="w-full h-full poster-loading-shimmer flex items-center justify-center opacity-30"><i data-lucide="sparkles" class="h-6 w-6"></i></div>`}
+              <div class="mini-movie-info">
+                  <div class="text-[8px] font-black text-cyan-400 mb-1">${new Date(m.premierAt).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</div>
+                  <div class="text-[10px] font-black text-white leading-tight uppercase truncate">${m.title}</div>
+              </div>
+          `;
+          
+          // Hover sound or haptic feedback (simulated)
+          movieEl.addEventListener('mouseenter', () => {
+              if (window.navigator.vibrate) window.navigator.vibrate(5);
+          });
+
+          movieEl.onclick = () => openDetail(m);
+          dayEl.appendChild(movieEl);
+          movieCount++;
+        });
+        grid.appendChild(dayEl);
+        addedDays++;
+      }
+      lucide.createIcons();
+    }
+
+    function openDetail(m) {
+      console.log("Opening detail for:", m.title);
+      selectedMovie = m;
+      updateDetailUI(m);
+      const modal = document.getElementById("detail-modal");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+
+    function updateDetailUI(m) {
+      console.log("Updating Detail UI for:", m.title);
+      const progress = Math.min((m.sold / m.threshold) * 100, 100);
+      const greenlit = m.sold >= m.threshold;
+      const isOwner = currentUser && m.directorEmail === currentUser.username;
+
+      document.getElementById("detail-title").textContent = m.title.toUpperCase();
+      document.getElementById("detail-desc").textContent = m.description;
+      document.getElementById("detail-director").textContent = m.director;
+      document.getElementById("detail-avatar").textContent = m.director ? m.director.split(' ').map(n=>n[0]).join('') : '?';
+      document.getElementById("detail-date").textContent = new Date(m.premierAt).toLocaleString('de-DE', {weekday:'short', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+      document.getElementById("detail-ticket-count").textContent = `${m.sold} / ${m.threshold}`;
+      document.getElementById("detail-progress").style.width = `${progress}%`;
+      
+      const poster = document.getElementById("detail-poster");
+      const loader = document.getElementById("detail-poster-loading");
+      if (m.posterUrl) {
+        poster.src = m.posterUrl;
+        poster.classList.remove("hidden");
+        loader.classList.add("hidden");
+      } else {
+        poster.classList.add("hidden");
+        loader.classList.remove("hidden");
+      }
+
+      const greenlitBadge = document.getElementById("greenlight-badge");
+      if (greenlitBadge) {
+        if (greenlit) greenlitBadge.classList.remove("hidden");
+        else greenlitBadge.classList.add("hidden");
+      }
+      
+      const ownerActions = document.getElementById("owner-actions");
+      if (isOwner) ownerActions.classList.remove("hidden");
+      else ownerActions.classList.add("hidden");
+
+      document.getElementById("delete-btn").onclick = () => cancelMovie(m.id);
+      document.getElementById("buy-btn").onclick = () => buyTicket(m.id);
+    }
+
+    function closeDetail() {
+      const modal = document.getElementById("detail-modal");
+      modal.classList.remove("flex");
+      modal.classList.add("hidden");
+      selectedMovie = null;
+    }
+
+    async function cancelMovie(id) {
+      if (!confirm("Möchtest du dieses Filmprojekt wirklich absagen? Alle Reservierungen werden gelöscht.")) return;
+      await fetch("/api/n8n/cancel-movie", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movieId: id, userEmail: currentUser.username }) });
+      closeDetail();
+      loadMovies();
+      showToast("Projekt wurde storniert.");
+    }
+
+    async function buyTicket(id) {
+      const res = await fetch("/api/n8n/buy-ticket", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movieId: id, user: { name: currentUser.name, username: currentUser.username } }) });
+      const data = await res.json();
+      if (data.error) showToast("Reservierung bereits aktiv.");
+      else { showToast(data.isGreenlit ? "FILM FREIGEGEBEN!" : "Ticket gesichert!"); loadMovies(); }
+    }
+
+    document.getElementById("login-btn").onclick = async () => {
+      console.log("Login button clicked");
+      try {
+        const loginRequest = {
+            scopes: ["User.Read"],
+            prompt: "select_account"
+        };
+        const resp = await msalInstance.loginPopup(loginRequest);
+        console.log("Login successful:", resp);
+        currentUser = resp.account;
+        showApp();
+      } catch (e) {
+        console.error("Login popup failed:", e);
+        // Fallback to redirect if popup is blocked
+        if (e.name === "BrowserAuthError" && e.errorCode === "popup_window_error") {
+            console.log("Popup blocked, trying redirect...");
+            await msalInstance.loginRedirect(loginRequest);
+        } else {
+            // Show specific error for hash_empty_error
+            if (e.message && e.message.includes("hash_empty_error")) {
+                showToast("Login fehlgeschlagen: Bitte Seite neu laden und erneut versuchen.");
+            } else {
+                showToast("Login fehlgeschlagen: " + e.message);
+            }
+        }
+      }
+    };
+    document.getElementById("logout-btn").onclick = () => { msalInstance.logoutPopup(); };
+    document.getElementById("open-pitch-modal").onclick = () => document.getElementById("pitch-modal").classList.replace("hidden", "flex");
+    document.getElementById("close-pitch-modal").onclick = () => document.getElementById("pitch-modal").classList.replace("flex", "hidden");
+
     document.getElementById("pitch-form").onsubmit = async (e) => {
       e.preventDefault();
-      const payload = {
-        title: document.getElementById("pitch-title").value,
-        description: document.getElementById("pitch-desc").value,
-        threshold: parseInt(document.getElementById("pitch-threshold").value),
-        premierAt: document.getElementById("pitch-premier").value,
-        director: currentUser.name,
-        directorEmail: currentUser.username
+      
+      const pitchDateStr = document.getElementById("pitch-date").value;
+      const pitchTime = document.getElementById("pitch-time").value;
+      
+      // Client-side validation for weekends
+      const pitchDate = new Date(pitchDateStr);
+      const dayOfWeek = pitchDate.getDay(); // 0=Sunday, 6=Saturday
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+          showToast("Das Kino ist am Wochenende geschlossen!");
+          return;
+      }
+      
+      const btn = document.getElementById("submit-pitch");
+      btn.disabled = true; btn.textContent = "KI-AGENTS ANALYSIEREN...";
+      
+      const premierAt = `${pitchDateStr}T${pitchTime}`;
+      
+      const payload = { 
+          description: document.getElementById("pitch-desc").value, 
+          threshold: parseInt(document.getElementById("pitch-threshold").value), 
+          premierAt: premierAt, 
+          director: currentUser.name, 
+          directorEmail: currentUser.username 
       };
-      await fetch("/api/n8n/add-movie", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      pitchModal.classList.replace("flex", "hidden");
-      document.getElementById("pitch-form").reset();
-      showToast("Pitch eingereicht!");
-      loadMovies();
+      try {
+        const res = await fetch("/api/n8n/add-movie", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (res.ok) {
+            document.getElementById("pitch-modal").classList.replace("flex", "hidden");
+            document.getElementById("pitch-form").reset();
+            document.getElementById("ai-generated-title").textContent = data.title;
+            document.getElementById("ai-modal").classList.replace("hidden", "flex");
+            loadMovies();
+        } else if (data.error) {
+            showToast(data.error);
+        }
+      } catch (err) { console.error(err); } finally { btn.disabled = false; btn.textContent = "FILMPROJEKT EINREICHEN"; }
     };
-
+    document.getElementById("close-ai-modal").onclick = () => document.getElementById("ai-modal").classList.replace("flex", "hidden");
+    function showToast(m) { const t = document.getElementById("toast"); document.getElementById("toast-msg").textContent = m; t.classList.remove("translate-y-20", "opacity-0"); setTimeout(() => t.classList.add("translate-y-20", "opacity-0"), 3000); }
+    
+    // Function to fix hash_empty_error by clearing hash and reloading
+    function fixHashError() {
+        console.log("Attempting to fix hash_empty_error...");
+        if (window.location.hash) {
+            console.log("Clearing hash:", window.location.hash);
+            window.location.hash = "";
+        }
+        // Small delay before reload to ensure hash is cleared
+        setTimeout(() => {
+            window.location.reload();
+        }, 100);
+    }
+    
+    // Check for hash_empty_error on page load
+    window.addEventListener('load', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('hash_error') === 'true') {
+            console.log("Detected hash_error parameter, fixing...");
+            fixHashError();
+        }
+    });
+    
     init();
   </script>
 </body>
