@@ -549,25 +549,33 @@
     
 // ==================== BANDWIDTH OPTIMIZATION: Lazy Image Loading ====================
 async function loadMovieImage(movieId, imgElement) {
+  console.log(`loadMovieImage called for movie ${movieId}`);
+  
   // Check cache first
   if (imageCache.has(movieId)) {
+    console.log(`Cache hit for movie ${movieId}`);
     imgElement.src = imageCache.get(movieId);
     return;
   }
   
   // Show loading state
   imgElement.classList.add('loading');
+  console.log(`Loading image for movie ${movieId}...`);
   
   try {
     const response = await fetch(`/api/n8n/image/${movieId}`);
+    console.log(`Image response for movie ${movieId}:`, response.status, response.ok);
+    
     if (response.ok) {
       const blob = await response.blob();
+      console.log(`Image blob for movie ${movieId}:`, blob.size, 'bytes');
       const imageUrl = URL.createObjectURL(blob);
       imageCache.set(movieId, imageUrl);
       imgElement.src = imageUrl;
       imgElement.classList.remove('loading');
+      console.log(`Image loaded for movie ${movieId}`);
     } else {
-      console.warn(`Image not found for movie ${movieId}`);
+      console.warn(`Image not found for movie ${movieId}:`, response.status);
       imgElement.classList.add('error');
     }
   } catch (error) {
@@ -615,13 +623,18 @@ async function loadMovies() {
         }
       });
       
-      // Remove movies that are no longer in newMovies
-      const newMovieIds = newMovies.map(m => m.id);
-      const filteredMovies = mergedMovies.filter(m => newMovieIds.includes(m.id));
+      // Only filter out movies if we got a non-empty response
+      let finalMovies = mergedMovies;
+      if (newMovies.length > 0) {
+        // If we got movies, filter to only include those (removes deleted movies)
+        const newMovieIds = newMovies.map(m => m.id);
+        finalMovies = mergedMovies.filter(m => newMovieIds.includes(m.id));
+      }
+      // If newMovies is empty, keep all existing movies (no changes)
       
-      if (moviesChanged || filteredMovies.length !== allMovies.length) {
+      if (moviesChanged || finalMovies.length !== allMovies.length) {
           console.log("Movies updated, re-rendering calendar...");
-          allMovies = filteredMovies;
+          allMovies = finalMovies;
           renderCalendar();
       }
 
@@ -714,11 +727,15 @@ async function loadMovies() {
           // Load image when it becomes visible
           const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
+              console.log(`IntersectionObserver for movie ${m.id}:`, entry.isIntersecting ? 'VISIBLE' : 'NOT VISIBLE');
               if (entry.isIntersecting) {
+                console.log(`Movie ${m.id} is now visible, loading image...`);
                 loadMovieImage(m.id, imgElement);
                 observer.unobserve(entry.target);
               }
             });
+          }, {
+            rootMargin: '50px' // Load images slightly before they enter viewport
           });
           observer.observe(imgElement);
           
