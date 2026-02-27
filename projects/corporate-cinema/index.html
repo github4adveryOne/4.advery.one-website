@@ -363,8 +363,15 @@
 
     async function loadMovies() {
       const res = await fetch("/api/n8n/get-movies");
-      allMovies = await res.json();
-      renderCalendar();
+      const newMovies = await res.json();
+      
+      // Check if movies have actually changed to prevent flickering
+      if (JSON.stringify(newMovies) !== JSON.stringify(allMovies)) {
+          console.log("Movies updated, re-rendering calendar...");
+          allMovies = newMovies;
+          renderCalendar();
+      }
+
       if (selectedMovie) {
         const updated = allMovies.find(m => m.id === selectedMovie.id);
         if (updated) updateDetailUI(updated);
