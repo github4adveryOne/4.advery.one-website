@@ -756,6 +756,12 @@ async function loadMovies() {
           // DEBUG: Changed from dark blue (#020617) to bright red (#ff0000) to make it visible
           imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2ZmMDAwMCIvPjwvc3ZnPg==';
           
+          // Load image immediately for now (debugging)
+          console.log(`Loading image immediately for movie ${m.id}`);
+          loadMovieImage(m.id, imgElement);
+          
+          // TODO: Re-enable lazy loading once we confirm it works
+          /*
           // Load image when it becomes visible
           const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -770,6 +776,7 @@ async function loadMovies() {
             rootMargin: '50px' // Load images slightly before they enter viewport
           });
           observer.observe(imgElement);
+          */
           
           imgContainer.appendChild(imgElement);
 
