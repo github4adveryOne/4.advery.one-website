@@ -7,6 +7,27 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js"></script>
+  <script>
+    // Fallback for MSAL if CDN fails
+    window.msalFallback = function() {
+      console.warn('MSAL CDN failed, trying local fallback...');
+      const script = document.createElement('script');
+      script.src = '/projects/corporate-cinema/msal-browser.min.js';
+      script.onerror = function() {
+        console.error('Both CDN and local MSAL failed');
+        document.getElementById('auth-screen').innerHTML = '<div class="text-center p-10"><h2 class="text-red-500 mb-4">Authentication library failed to load</h2><p class="text-slate-400">Please check your connection and refresh.</p></div>';
+      };
+      document.head.appendChild(script);
+    };
+    
+    // Add error handler for MSAL script
+    document.addEventListener('DOMContentLoaded', function() {
+      const msalScript = document.querySelector('script[src*="msal-browser"]');
+      if (msalScript) {
+        msalScript.onerror = window.msalFallback;
+      }
+    });
+  </script>
   <style>
     body { background: #020617; color: #f8fafc; font-family: 'Inter', sans-serif; }
     .glass { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
@@ -417,27 +438,101 @@
 
   <script>
     const TENANT_ID = "b2057218-c748-4a02-a220-1309d3034ba1";
+    // Not using API scope anymore - using ID tokens instead
+    // const API_SCOPE = "api://6ff61b4c-46af-4452-b405-5b359e83c843/access";
     const msalConfig = {
       auth: { 
         clientId: "6ff61b4c-46af-4452-b405-5b359e83c843", 
         authority: `https://login.microsoftonline.com/${TENANT_ID}`, 
         redirectUri: window.location.origin + "/cinema/", 
-        navigateToLoginRequestUrl: true  // Changed to true for better mobile handling
+        postLogoutRedirectUri: window.location.origin + "/cinema/",
+        navigateToLoginRequestUrl: false
       },
       cache: { 
         cacheLocation: "localStorage", 
         storeAuthStateInCookie: true 
       },
       system: {
-        allowNativeBroker: false,  // Disable native broker for mobile web
-        windowHashTimeout: 10000,  // Increase timeout for mobile
+        allowNativeBroker: false,
+        windowHashTimeout: 10000,
         iframeHashTimeout: 10000,
         loadFrameTimeout: 10000
       }
     };
+    
     let msalInstance, currentUser, allMovies = [], selectedMovie = null, calendarDays = 7;
     let lastUpdateTime = null;
     const imageCache = new Map();
+
+    // Global error handler
+    window.onerror = function(message, source, lineno, colno, error) {
+      console.error("Global JS error:", message, "at", source, lineno, colno);
+      if (typeof showToast === 'function') showToast("Systemfehler: " + message);
+      return false;
+    };
+
+    // Helper function to get authentication headers
+    async function getAuthHeaders() {
+      if (!msalInstance || !currentUser) {
+        throw new Error("Not authenticated");
+      }
+      
+      try {
+        // Get an ID token by requesting openid scope
+        // This will return the ID token (not access token)
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          scopes: ["openid"],  // Request ID token
+          account: currentUser
+        });
+        
+        // tokenResponse should contain idToken
+        const idToken = tokenResponse.idToken;
+        
+        if (!idToken) {
+          console.error("No ID token in response:", tokenResponse);
+          throw new Error("No ID token available");
+        }
+        
+        return {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        };
+      } catch (error) {
+        console.error("Failed to get ID token:", error);
+        throw new Error("Authentication failed");
+      }
+    }
+    
+    // Helper function for authenticated fetch
+    async function authFetch(url, options = {}) {
+      try {
+        const authHeaders = await getAuthHeaders();
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            ...authHeaders,
+            ...options.headers
+          }
+        });
+        
+        if (response.status === 401) {
+          console.warn("Authentication expired");
+          msalInstance.clearCache();
+          window.location.reload();
+          throw new Error("Authentication expired");
+        }
+        
+        if (response.status === 403) {
+          showToast("Zugriff verweigert. Keine Berechtigung.");
+          throw new Error("Access denied");
+        }
+        
+        return response;
+      } catch (error) {
+        console.error("Auth fetch error:", error);
+        throw error;
+      }
+    }
 
     async function init() {
       console.log("MSAL init starting... URL:", window.location.href, "Hash:", window.location.hash);
@@ -445,91 +540,183 @@
         msalInstance = new msal.PublicClientApplication(msalConfig);
         await msalInstance.initialize();
         
-        // Initial load of movies while auth is initializing to speed up perceived performance
-        loadMovies();
-        
-        // Enhanced hash_empty_error handling with mobile-specific recovery
+        // Handle redirect promise
         try {
             const resp = await msalInstance.handleRedirectPromise();
             if (resp) {
                 console.log("Redirect detected and processed successfully:", resp);
                 currentUser = resp.account;
-                // Clear hash after successful redirect processing
+                // Store ID token from response
+                if (resp.idToken) {
+                    currentUser.idToken = resp.idToken;
+                } else if (resp.idTokenClaims) {
+                    // If we have claims but not raw token, we'll need to handle this differently
+                    console.log("Have ID token claims but not raw token");
+                }
                 if (window.location.hash) {
-                    console.log("Clearing hash after successful auth:", window.location.hash);
                     window.location.hash = "";
                 }
                 showApp();
-                return; // Skip cache check since we already have a user
+                setupEventListeners(); // Setup listeners even if app shown
+                return;
             }
         } catch (hashError) {
             console.warn("Caught error in handleRedirectPromise:", hashError);
-            // Special handling for hash_empty_error on mobile
             if (hashError.errorCode === "hash_empty_error" || (hashError.message && hashError.message.includes("hash_empty_error"))) {
-                console.warn("hash_empty_error detected. This often happens on mobile browsers.");
-                
-                // Check if we have state in sessionStorage (MSAL might have saved it)
-                let hasValidState = false;
-                for (let i = 0; i < sessionStorage.length; i++) {
-                    const key = sessionStorage.key(i);
-                    if (key?.includes("msal.") && key?.includes("state")) {
-                        console.log("Found MSAL state in sessionStorage:", key);
-                        hasValidState = true;
-                        break;
-                    }
-                }
-                
-                if (hasValidState) {
-                    console.log("MSAL state exists but hash is empty. This suggests the hash was lost during redirect.");
-                    // Try to recover by checking cache - user might have been logged in before
-                }
-                
-                // Clear any problematic hash fragments
                 if (window.location.hash) {
-                    console.log("Clearing problematic hash:", window.location.hash);
                     window.location.hash = "";
                 }
-                
-                // Don't throw - continue to cache check
             } else {
-                console.error("Non-hash error in handleRedirectPromise:", hashError);
-                // Re-throw other errors
                 throw hashError;
             }
         }
         
-        // Check cache for existing accounts (fallback for hash_empty_error or no redirect)
+        // Check cache
         const accounts = msalInstance.getAllAccounts();
-        console.log("All accounts in cache:", accounts.length, "accounts");
-        
         if (accounts.length > 0) {
           currentUser = accounts[0];
-          console.log("Active user from cache:", currentUser.username);
-          showApp();
-        } else if (currentUser) {
+          // For cached accounts, we don't have ID token yet
+          // It will be fetched when needed by getAuthHeaders()
           showApp();
         } else {
-          console.log("No user found in cache and no redirect was processed.");
-          // User will need to click login
+          console.log("No user logged in.");
         }
+        
+        setupEventListeners();
       } catch (e) { 
         console.error("Critical MSAL init error:", e);
-        // Show error to user but don't prevent the page from loading
         showToast("Initialisierung fehlgeschlagen: " + e.message);
       }
       lucide.createIcons();
     }
 
+    function setupEventListeners() {
+      // Set default date/time for pitch form
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      
+      // Skip weekends
+      if (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate() + 1);
+      if (tomorrow.getDay() === 6) tomorrow.setDate(tomorrow.getDate() + 2);
+      
+      const dateInput = document.getElementById('pitch-date');
+      const timeInput = document.getElementById('pitch-time');
+      if (dateInput) {
+        dateInput.value = tomorrow.toISOString().split('T')[0];
+        dateInput.min = new Date().toISOString().split('T')[0];
+      }
+      if (timeInput) {
+        timeInput.value = '14:00';
+      }
+      
+      const loginBtn = document.getElementById("login-btn");
+      if (loginBtn) {
+        loginBtn.onclick = async () => {
+          console.log("Login button clicked - using redirect");
+          const loginRequest = {
+              scopes: ["openid"],  // Minimal scope
+              prompt: "select_account"
+          };
+          try {
+              await msalInstance.loginRedirect(loginRequest);
+          } catch (e) {
+              console.error("Login redirect failed:", e);
+              showToast("Login fehlgeschlagen: " + e.message);
+          }
+        };
+      }
+
+      const logoutBtn = document.getElementById("logout-btn");
+      if (logoutBtn) {
+        logoutBtn.onclick = () => { 
+          msalInstance.logoutRedirect({
+            postLogoutRedirectUri: window.location.origin + "/cinema/"
+          }); 
+        };
+      }
+
+      const openPitchBtn = document.getElementById("open-pitch-modal");
+      if (openPitchBtn) {
+        openPitchBtn.onclick = () => document.getElementById("pitch-modal").classList.replace("hidden", "flex");
+      }
+      
+      const closePitchBtn = document.getElementById("close-pitch-modal");
+      if (closePitchBtn) {
+        closePitchBtn.onclick = () => document.getElementById("pitch-modal").classList.replace("flex", "hidden");
+      }
+
+      const closeAiModalBtn = document.getElementById("close-ai-modal");
+      if (closeAiModalBtn) {
+        closeAiModalBtn.onclick = () => document.getElementById("ai-modal").classList.replace("flex", "hidden");
+      }
+
+      const pitchForm = document.getElementById("pitch-form");
+      if (pitchForm) {
+        pitchForm.onsubmit = async (e) => {
+          e.preventDefault();
+          const pitchDateStr = document.getElementById("pitch-date").value;
+          const pitchTime = document.getElementById("pitch-time").value;
+          const pitchDate = new Date(pitchDateStr);
+          if (pitchDate.getDay() === 0 || pitchDate.getDay() === 6) {
+              showToast("Das Kino ist am Wochenende geschlossen!");
+              return;
+          }
+          
+          const btn = document.getElementById("submit-pitch");
+          btn.disabled = true; btn.textContent = "KI-AGENTS ANALYSIEREN...";
+          
+          const payload = { 
+              description: document.getElementById("pitch-desc").value, 
+              threshold: parseInt(document.getElementById("pitch-threshold").value), 
+              premierAt: `${pitchDateStr}T${pitchTime}`, 
+              director: currentUser.name, 
+              directorEmail: currentUser.username 
+          };
+          try {
+            const res = await authFetch("/api/n8n/add-movie", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById("pitch-modal").classList.replace("flex", "hidden");
+                document.getElementById("pitch-form").reset();
+                document.getElementById("ai-generated-title").textContent = data.title;
+                document.getElementById("ai-modal").classList.replace("hidden", "flex");
+                loadMovies();
+            } else if (data.error) {
+                showToast(data.error);
+            }
+          } catch (err) { console.error(err); } finally { btn.disabled = false; btn.textContent = "FILMPROJEKT EINREICHEN"; }
+        };
+      }
+    }
+
     function showApp() {
+      console.log("showApp called with currentUser:", currentUser);
+      const userDomain = currentUser.username.split('@')[1];
+      const allowedDomains = ['cervis.de', 'advery.one', 'example.com'];
+      console.log("User domain:", userDomain, "Allowed domains:", allowedDomains);
+      
+      if (!allowedDomains.includes(userDomain)) {
+        console.log("Domain not allowed, logging out. User domain:", userDomain);
+        showToast(`Zugriff verweigert. Domain ${userDomain} ist nicht autorisiert.`);
+        // Wait 3 seconds before logout so user can see the message
+        setTimeout(() => {
+          msalInstance.logoutRedirect({
+            postLogoutRedirectUri: window.location.origin + "/cinema/"
+          });
+        }, 3000);
+        return;
+      }
+      
       document.getElementById("auth-screen").classList.add("hidden");
       document.getElementById("app-screen").classList.remove("hidden");
       document.getElementById("user-display").textContent = currentUser.name;
       setDays(calendarDays);
-      setInterval(loadMovies, 10000); // BANDWIDTH OPTIMIZATION: 10s polling
+      loadMovies(); 
+      setInterval(loadMovies, 10000);
     }
 
     function setDays(n) {
-        console.log("Setting days to:", n);
         calendarDays = n;
         [7, 14, 30].forEach(d => {
             const btn = document.getElementById(`btn-${d}`);
@@ -546,126 +733,137 @@
         renderCalendar();
     }
 
-    
-// ==================== BANDWIDTH OPTIMIZATION: Lazy Image Loading ====================
-async function loadMovieImage(movieId, imgElement) {
-  // Check cache first
-  if (imageCache.has(movieId)) {
-    imgElement.src = imageCache.get(movieId);
-    imgElement.classList.remove('loading');
-    return;
-  }
-  
-  // Show loading state
-  imgElement.classList.add('loading');
-  
-  try {
-    const response = await fetch(`/api/n8n/image/${movieId}`);
-    if (response.ok) {
-      const blob = await response.blob();
-      const imageUrl = URL.createObjectURL(blob);
-      imageCache.set(movieId, imageUrl);
-      imgElement.src = imageUrl;
-      imgElement.classList.remove('loading');
-    } else {
-      console.warn(`Image not found for movie ${movieId}`);
-      imgElement.classList.add('error');
+    async function loadMovieImage(movieId, imgElement) {
+      if (imageCache.has(movieId)) {
+        imgElement.src = imageCache.get(movieId);
+        imgElement.classList.remove('loading');
+        // Show image and hide loading indicators
+        imgElement.classList.remove('hidden');
+        // Hide shimmer if it exists (calendar view)
+        const shimmer = imgElement.previousElementSibling;
+        if (shimmer && shimmer.classList.contains('poster-loading-shimmer')) {
+          shimmer.style.display = 'none';
+        }
+        // Hide detail loading indicator if it exists
+        const detailLoading = document.getElementById('detail-poster-loading');
+        if (detailLoading && imgElement.id === 'detail-poster') {
+          detailLoading.style.display = 'none';
+        }
+        return;
+      }
+      imgElement.classList.add('loading');
+      try {
+        const response = await authFetch(`/api/n8n/image/${movieId}`);
+        if (response.ok) {
+          const blob = await response.blob();
+          const imageUrl = URL.createObjectURL(blob);
+          imageCache.set(movieId, imageUrl);
+          imgElement.src = imageUrl;
+          imgElement.classList.remove('loading');
+          // Show image and hide loading indicators
+          imgElement.classList.remove('hidden');
+          // Hide shimmer when image loads (calendar view)
+          const shimmer = imgElement.previousElementSibling;
+          if (shimmer && shimmer.classList.contains('poster-loading-shimmer')) {
+            shimmer.style.display = 'none';
+          }
+          // Hide detail loading indicator if it exists
+          const detailLoading = document.getElementById('detail-poster-loading');
+          if (detailLoading && imgElement.id === 'detail-poster') {
+            detailLoading.style.display = 'none';
+          }
+        } else {
+          imgElement.classList.add('error');
+          // Keep shimmer visible on error as fallback (calendar view)
+          // For detail view, show error state
+          if (imgElement.id === 'detail-poster') {
+            const detailLoading = document.getElementById('detail-poster-loading');
+            if (detailLoading) {
+              detailLoading.innerHTML = '<i data-lucide="alert-circle" class="h-10 w-10 text-rose-500"></i><span class="text-[10px] font-black uppercase tracking-widest italic">Fehler beim Laden</span>';
+              lucide.createIcons();
+            }
+          }
+        }
+      } catch (error) {
+        imgElement.classList.add('error');
+        // Keep shimmer visible on error as fallback (calendar view)
+        // For detail view, show error state
+        if (imgElement.id === 'detail-poster') {
+          const detailLoading = document.getElementById('detail-poster-loading');
+          if (detailLoading) {
+            detailLoading.innerHTML = '<i data-lucide="alert-circle" class="h-10 w-10 text-rose-500"></i><span class="text-[10px] font-black uppercase tracking-widest italic">Fehler beim Laden</span>';
+            lucide.createIcons();
+          }
+        }
+      }
     }
-  } catch (error) {
-    console.error(`Failed to load image for movie ${movieId}:`, error);
-    imgElement.classList.add('error');
-  }
-}
-async function loadMovies() {
+
+    async function loadMovies() {
       let url = '/api/n8n/get-movies';
       if (lastUpdateTime) {
-        // BANDWIDTH OPTIMIZATION: Use incremental updates
         url = `/api/n8n/get-movies-since?since=${encodeURIComponent(lastUpdateTime)}`;
       }
       
-      const res = await fetch(url);
-      const newMovies = await res.json();
-      
-      // Handle the response
-      if (newMovies.length === 0) {
-        // Empty response means no changes since lastUpdateTime
-        return; // Don't change anything
-      }
-      
-      // Update lastUpdateTime to the latest updated_at
-      const timestamps = newMovies.map(m => m.updated_at).filter(t => t);
-      if (timestamps.length > 0) {
-        lastUpdateTime = timestamps.sort().reverse()[0];
-      }
-      
-      // Create a map of new movies by id for easy lookup
-      const newMoviesMap = new Map();
-      newMovies.forEach(movie => {
-        newMoviesMap.set(movie.id, movie);
-      });
-      
-      // Update existing movies and add new ones
-      const updatedMovies = [];
-      let hasChanges = false;
-      
-      // First, check existing movies
-      for (const existingMovie of allMovies) {
-        if (newMoviesMap.has(existingMovie.id)) {
-          // Movie exists in new data - update it
-          const newMovie = newMoviesMap.get(existingMovie.id);
-          // Preserve posterUrl if not in new data
-          if (!newMovie.posterUrl && existingMovie.posterUrl) {
-            newMovie.posterUrl = existingMovie.posterUrl;
-          }
-          // Only add if not cancelled
-          if (!newMovie.isCancelled) {
-            updatedMovies.push(newMovie);
-          }
-          newMoviesMap.delete(existingMovie.id); // Remove from map so we don't add it again
-          hasChanges = true;
-        } else {
-          // Movie not in new data - it hasn't changed OR was deleted
-          // Keep it (if it was deleted, API would have sent it with isCancelled=1)
-          updatedMovies.push(existingMovie);
+      try {
+        const res = await authFetch(url);
+        const newMovies = await res.json();
+        if (newMovies.length === 0) return;
+        
+        const timestamps = newMovies.map(m => m.updated_at).filter(t => t);
+        if (timestamps.length > 0) {
+          lastUpdateTime = timestamps.sort().reverse()[0];
         }
-      }
-      
-      // Add any remaining new movies (these are brand new)
-      for (const [id, movie] of newMoviesMap) {
-        // Only add if not cancelled
-        if (!movie.isCancelled) {
-          updatedMovies.push(movie);
-          hasChanges = true;
+        
+        const newMoviesMap = new Map();
+        newMovies.forEach(movie => newMoviesMap.set(movie.id, movie));
+        
+        const updatedMovies = [];
+        let hasChanges = false;
+        
+        for (const existingMovie of allMovies) {
+          if (newMoviesMap.has(existingMovie.id)) {
+            const newMovie = newMoviesMap.get(existingMovie.id);
+            if (!newMovie.posterUrl && existingMovie.posterUrl) {
+              newMovie.posterUrl = existingMovie.posterUrl;
+            }
+            if (!newMovie.isCancelled) {
+              updatedMovies.push(newMovie);
+            }
+            newMoviesMap.delete(existingMovie.id);
+            hasChanges = true;
+          } else {
+            updatedMovies.push(existingMovie);
+          }
         }
-      }
-      
-      // Only update if there were changes
-      if (hasChanges) {
-        allMovies = updatedMovies;
-        renderCalendar();
-      }
+        
+        for (const [id, movie] of newMoviesMap) {
+          if (!movie.isCancelled) {
+            updatedMovies.push(movie);
+            hasChanges = true;
+          }
+        }
+        
+        if (hasChanges) {
+          allMovies = updatedMovies;
+          renderCalendar();
+        }
 
-      if (selectedMovie) {
-        const updated = allMovies.find(m => m.id === selectedMovie.id);
-        if (updated) {
-          updateDetailUI(updated);
-        } else {
-          // Movie was cancelled or deleted, close detail view
-          closeDetail();
+        if (selectedMovie) {
+          const updated = allMovies.find(m => m.id === selectedMovie.id);
+          if (updated) updateDetailUI(updated);
+          else closeDetail();
         }
+      } catch (error) {
+        console.error("Error loading movies:", error);
       }
     }
 
     function renderCalendar() {
       const grid = document.getElementById("calendar-grid");
       grid.innerHTML = "";
-      
-      // Use local date for "today" calculation to avoid UTC shifting
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const today = new Date();
+      today.setHours(0,0,0,0);
 
-      // Animation stagger
-      let movieCount = 0;
       let addedDays = 0;
       let currentOffset = 0;
 
@@ -674,103 +872,75 @@ async function loadMovies() {
         day.setDate(today.getDate() + currentOffset);
         currentOffset++;
 
-        const isWeekend = [0, 6].includes(day.getDay());
-        if (isWeekend) continue; // Skip weekends entirely
+        if ([0, 6].includes(day.getDay())) continue;
         
-        // Format local YYYY-MM-DD for comparison
-        const offset = day.getTimezoneOffset() * 60000;
-        const dayStr = new Date(day.getTime() - offset).toISOString().split('T')[0];
-        
-        const dayMovies = allMovies.filter(m => {
-            // Compare only the date part
-            const movieDate = m.premierAt.split('T')[0];
-            return movieDate === dayStr;
-        });
-        
-        const isToday = dayStr === now.toISOString().split('T')[0];
-
         const dayEl = document.createElement("div");
-        dayEl.className = `calendar-day ${isToday ? 'today' : ''}`;
-        dayEl.innerHTML = `<div class="mb-4 flex items-center justify-between"><span class="text-[10px] font-black ${isToday ? 'text-cyan-400 underline underline-offset-4' : 'text-slate-600'} uppercase">${day.toLocaleDateString('de-DE', {weekday:'short'})} ${day.getDate()}. ${day.toLocaleDateString('de-DE', {month:'short'})}</span></div>`;
-        
-        if (dayMovies.length === 0) {
-            const emptyHint = document.createElement("div");
-            emptyHint.className = "h-full flex items-center justify-center border border-dashed border-slate-800/50 rounded-2xl opacity-20 hover:opacity-100 hover:border-cyan-500/50 cursor-pointer transition-all";
-            emptyHint.innerHTML = '<i data-lucide="plus" class="h-4 w-4"></i>';
-            emptyHint.onclick = () => {
-                // Set default date to this day
-                const offset = day.getTimezoneOffset() * 60000;
-                const localDate = new Date(day.getTime() - offset).toISOString().split('T')[0];
-                
-                document.getElementById("pitch-date").value = localDate;
-                document.getElementById("pitch-time").value = "10:00";
-                
-                document.getElementById("pitch-modal").classList.remove("hidden");
-                document.getElementById("pitch-modal").classList.add("flex");
-            };
-            dayEl.appendChild(emptyHint);
-        }
+        dayEl.className = `calendar-day ${day.getTime() === today.getTime() ? 'today' : ''}`;
+        dayEl.innerHTML = `
+            <div class="text-[10px] font-black text-slate-500 mb-4 tracking-[0.2em] uppercase">${day.toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'2-digit'})}</div>
+        `;
+
+        const dayMovies = allMovies.filter(m => {
+            const mDate = new Date(m.premierAt);
+            return mDate.getFullYear() === day.getFullYear() && 
+                   mDate.getMonth() === day.getMonth() && 
+                   mDate.getDate() === day.getDate();
+        });
 
         dayMovies.forEach(m => {
-          const greenlit = m.sold >= m.threshold;
           const movieEl = document.createElement("div");
-          movieEl.className = `mini-movie ${greenlit ? 'greenlit' : ''}`;
+          movieEl.className = `mini-movie ${m.sold >= m.threshold ? 'greenlit' : ''}`;
           
-          let statusOverlay = '';
-          if (m.posterStatus === 'processing') {
-              statusOverlay = '<div class="absolute inset-0 bg-black/60 flex items-center justify-center z-10"><span class="status-badge status-processing animate-pulse">Wird erstellt...</span></div>';
-          } else if (m.posterStatus === 'failed') {
-              statusOverlay = '<div class="absolute inset-0 bg-black/60 flex items-center justify-center z-10"><span class="status-badge status-failed">Fehler</span></div>';
-          }
-
-          // Create image element for lazy loading
           const imgContainer = document.createElement('div');
-          imgContainer.className = 'w-full h-full absolute inset-0';
+          imgContainer.className = 'w-full h-full relative';
           
-          // Always create img element for lazy loading, regardless of posterUrl in metadata
-          const imgElement = document.createElement('img');
-          imgElement.className = 'w-full h-full object-cover lazy-image';
-          imgElement.dataset.movieId = m.id;
-          imgElement.alt = m.title;
+          // Add shimmer loading background
+          const shimmer = document.createElement('div');
+          shimmer.className = 'absolute inset-0 poster-loading-shimmer';
+          imgContainer.appendChild(shimmer);
           
-          // Use a placeholder initially, load on visibility
-          imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
-          
-          // Load image when it becomes visible
-          const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-              if (entry.isIntersecting) {
-                loadMovieImage(m.id, imgElement);
-                observer.unobserve(entry.target);
-              }
-            });
-          }, {
-            rootMargin: '50px' // Load images slightly before they enter viewport
-          });
-          observer.observe(imgElement);
-          
-          imgContainer.appendChild(imgElement);
+          const img = document.createElement('img');
+          img.className = 'w-full h-full object-cover lazy-image';
+          imgContainer.appendChild(img);
+          loadMovieImage(m.id, img);
 
           movieEl.innerHTML = `
-              ${statusOverlay}
               <div class="mini-movie-info">
                   <div class="text-[8px] font-black text-cyan-400 mb-1">${new Date(m.premierAt).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</div>
                   <div class="text-[10px] font-black text-white leading-tight uppercase truncate">${m.title}</div>
               </div>
           `;
-          
-          // Insert the image container
           movieEl.insertBefore(imgContainer, movieEl.firstChild);
-          
-          // Hover sound or haptic feedback (simulated)
-          movieEl.addEventListener('mouseenter', () => {
-              if (window.navigator.vibrate) window.navigator.vibrate(5);
-          });
-
           movieEl.onclick = () => openDetail(m);
           dayEl.appendChild(movieEl);
-          movieCount++;
         });
+        
+        // Add plus button for empty days
+        if (dayMovies.length === 0) {
+          const plusButton = document.createElement("button");
+          plusButton.className = "w-full h-full flex flex-col items-center justify-center text-slate-700 hover:text-cyan-400 transition group";
+          plusButton.innerHTML = `
+            <div class="mb-2">
+              <i data-lucide="plus" class="h-8 w-8 group-hover:scale-110 transition"></i>
+            </div>
+            <div class="text-[10px] font-black uppercase tracking-widest">Film hinzufügen</div>
+          `;
+          plusButton.onclick = () => {
+            // Set the date in the pitch form to this day
+            const dateInput = document.getElementById('pitch-date');
+            const timeInput = document.getElementById('pitch-time');
+            if (dateInput && timeInput) {
+              const formattedDate = day.toISOString().split('T')[0];
+              const defaultTime = '14:00'; // 2 PM default
+              dateInput.value = formattedDate;
+              timeInput.value = defaultTime;
+            }
+            // Open pitch modal
+            document.getElementById("pitch-modal").classList.replace("hidden", "flex");
+          };
+          dayEl.appendChild(plusButton);
+        }
+        
         grid.appendChild(dayEl);
         addedDays++;
       }
@@ -778,16 +948,13 @@ async function loadMovies() {
     }
 
     function openDetail(m) {
-      console.log("Opening detail for:", m.title);
       selectedMovie = m;
       updateDetailUI(m);
       const modal = document.getElementById("detail-modal");
-      modal.classList.remove("hidden");
-      modal.classList.add("flex");
+      modal.classList.replace("hidden", "flex");
     }
 
     function updateDetailUI(m) {
-      console.log("Updating Detail UI for:", m.title);
       const progress = Math.min((m.sold / m.threshold) * 100, 100);
       const greenlit = m.sold >= m.threshold;
       const isOwner = currentUser && m.directorEmail === currentUser.username;
@@ -801,224 +968,73 @@ async function loadMovies() {
       document.getElementById("detail-progress").style.width = `${progress}%`;
       
       const poster = document.getElementById("detail-poster");
-      const loader = document.getElementById("detail-poster-loading");
-      
-      // Always try to load image, regardless of posterUrl in metadata
       poster.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
-      poster.classList.add('lazy-image', 'loading');
-      poster.classList.remove("hidden");
-      loader.classList.add("hidden");
-      
-      // Load the image
+      poster.classList.add('hidden');
+      // Show loading indicator
+      const detailLoading = document.getElementById('detail-poster-loading');
+      if (detailLoading) {
+        detailLoading.style.display = 'flex';
+        detailLoading.innerHTML = '<i data-lucide="loader" class="h-10 w-10 animate-spin text-cyan-500"></i><span class="text-[10px] font-black uppercase tracking-widest italic">KI erstellt Filmplakat...</span>';
+        lucide.createIcons();
+      }
       loadMovieImage(m.id, poster);
 
       const greenlitBadge = document.getElementById("greenlight-badge");
-      if (greenlitBadge) {
-        if (greenlit) greenlitBadge.classList.remove("hidden");
-        else greenlitBadge.classList.add("hidden");
-      }
+      if (greenlitBadge) greenlitBadge.classList.toggle("hidden", !greenlit);
       
       const ownerActions = document.getElementById("owner-actions");
-      if (isOwner) ownerActions.classList.remove("hidden");
-      else ownerActions.classList.add("hidden");
+      ownerActions.classList.toggle("hidden", !isOwner);
 
       document.getElementById("delete-btn").onclick = () => cancelMovie(m.id);
       document.getElementById("buy-btn").onclick = () => buyTicket(m.id);
     }
 
     function closeDetail() {
-      const modal = document.getElementById("detail-modal");
-      modal.classList.remove("flex");
-      modal.classList.add("hidden");
+      document.getElementById("detail-modal").classList.replace("flex", "hidden");
       selectedMovie = null;
     }
 
     async function cancelMovie(id) {
-      if (!confirm("Möchtest du dieses Filmprojekt wirklich absagen? Alle Reservierungen werden gelöscht.")) return;
-      await fetch("/api/n8n/cancel-movie", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movieId: id, userEmail: currentUser.username }) });
+      if (!confirm("Möchtest du dieses Filmprojekt wirklich absagen?")) return;
+      await authFetch("/api/n8n/cancel-movie", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movieId: id }) });
       closeDetail();
       loadMovies();
       showToast("Projekt wurde storniert.");
     }
 
     async function buyTicket(id) {
-      const res = await fetch("/api/n8n/buy-ticket", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movieId: id, user: { name: currentUser.name, username: currentUser.username } }) });
+      const res = await authFetch("/api/n8n/buy-ticket", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movieId: id }) });
       const data = await res.json();
-      if (data.error) showToast("Reservierung bereits aktiv.");
+      if (data.error) showToast(data.error);
       else { showToast(data.isGreenlit ? "FILM FREIGEGEBEN!" : "Ticket gesichert!"); loadMovies(); }
     }
 
-    // Enhanced mobile detection
-    const isMobile = () => {
-      const ua = navigator.userAgent;
-      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Windows Phone|Kindle|Silk|Mobile|Tablet/i;
-      const isMobileUA = mobileRegex.test(ua);
-      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      const isSmallScreen = window.innerWidth < 768;
-      
-      console.log("Mobile detection:", { ua, isMobileUA, hasTouch, isSmallScreen });
-      return isMobileUA || (hasTouch && isSmallScreen);
-    };
-
-    document.getElementById("login-btn").onclick = async () => {
-      console.log("Login button clicked");
-      const loginRequest = {
-          scopes: ["User.Read"],
-          prompt: "select_account"
-      };
-
-      // Always use redirect flow on mobile devices
-      if (isMobile()) {
-          console.log("Mobile device detected: Using loginRedirect with query response mode");
-          const mobileLoginRequest = {
-              scopes: loginRequest.scopes,
-              prompt: loginRequest.prompt,
-              responseMode: "query"  // Use query parameters instead of hash for mobile
-          };
-          try {
-              await msalInstance.loginRedirect(mobileLoginRequest);
-          } catch (e) {
-              console.error("Redirect failed:", e);
-              showToast("Login-Umleitung fehlgeschlagen: " + e.message);
-          }
-          return;
-      }
-
-      // Desktop: try popup first, fall back to redirect
-      try {
-        console.log("Desktop: Attempting loginPopup");
-        const resp = await msalInstance.loginPopup(loginRequest);
-        console.log("Login successful via popup:", resp);
-        currentUser = resp.account;
-        showApp();
-      } catch (e) {
-        console.error("Login popup failed:", e);
-        // Fallback to redirect for various popup issues
-        if (e.name === "BrowserAuthError") {
-            console.log("BrowserAuthError detected, falling back to redirect. Error code:", e.errorCode);
-            try {
-                await msalInstance.loginRedirect(loginRequest);
-            } catch (redirectError) {
-                console.error("Redirect fallback also failed:", redirectError);
-                showToast("Login fehlgeschlagen: " + redirectError.message);
-            }
-        } else {
-            showToast("Login fehlgeschlagen: " + e.message);
-        }
-      }
-    };
-    document.getElementById("logout-btn").onclick = () => { msalInstance.logoutPopup(); };
-    document.getElementById("open-pitch-modal").onclick = () => document.getElementById("pitch-modal").classList.replace("hidden", "flex");
-    document.getElementById("close-pitch-modal").onclick = () => document.getElementById("pitch-modal").classList.replace("flex", "hidden");
-
-    document.getElementById("pitch-form").onsubmit = async (e) => {
-      e.preventDefault();
-      
-      const pitchDateStr = document.getElementById("pitch-date").value;
-      const pitchTime = document.getElementById("pitch-time").value;
-      
-      // Client-side validation for weekends
-      const pitchDate = new Date(pitchDateStr);
-      const dayOfWeek = pitchDate.getDay(); // 0=Sunday, 6=Saturday
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-          showToast("Das Kino ist am Wochenende geschlossen!");
-          return;
-      }
-      
-      const btn = document.getElementById("submit-pitch");
-      btn.disabled = true; btn.textContent = "KI-AGENTS ANALYSIEREN...";
-      
-      const premierAt = `${pitchDateStr}T${pitchTime}`;
-      
-      const payload = { 
-          description: document.getElementById("pitch-desc").value, 
-          threshold: parseInt(document.getElementById("pitch-threshold").value), 
-          premierAt: premierAt, 
-          director: currentUser.name, 
-          directorEmail: currentUser.username 
-      };
-      try {
-        const res = await fetch("/api/n8n/add-movie", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        const data = await res.json();
-        if (res.ok) {
-            document.getElementById("pitch-modal").classList.replace("flex", "hidden");
-            document.getElementById("pitch-form").reset();
-            document.getElementById("ai-generated-title").textContent = data.title;
-            document.getElementById("ai-modal").classList.replace("hidden", "flex");
-            loadMovies();
-        } else if (data.error) {
-            showToast(data.error);
-        }
-      } catch (err) { console.error(err); } finally { btn.disabled = false; btn.textContent = "FILMPROJEKT EINREICHEN"; }
-    };
-    document.getElementById("close-ai-modal").onclick = () => document.getElementById("ai-modal").classList.replace("flex", "hidden");
-    function showToast(m) { const t = document.getElementById("toast"); document.getElementById("toast-msg").textContent = m; t.classList.remove("translate-y-20", "opacity-0"); setTimeout(() => t.classList.add("translate-y-20", "opacity-0"), 3000); }
-    
-    // Function to fix hash_empty_error by clearing hash and reloading
-    function fixHashError() {
-        console.log("Attempting to fix hash_empty_error...");
-        if (window.location.hash) {
-            console.log("Clearing hash:", window.location.hash);
-            window.location.hash = "";
-        }
-        // Small delay before reload to ensure hash is cleared
-        setTimeout(() => {
-            window.location.reload();
-        }, 100);
+    function showToast(m) { 
+      const t = document.getElementById("toast"); 
+      document.getElementById("toast-msg").textContent = m; 
+      t.classList.remove("translate-y-20", "opacity-0"); 
+      setTimeout(() => t.classList.add("translate-y-20", "opacity-0"), 3000); 
     }
     
-    // Check for hash_empty_error on page load
-    // Function to show/hide the how-to guide
     function toggleHowToGuide() {
-        const guide = document.getElementById('how-to-guide');
+      const guide = document.getElementById('how-to-guide');
+      if (guide) {
         guide.classList.toggle('hidden');
-        
         // Scroll to guide if showing
         if (!guide.classList.contains('hidden')) {
-            setTimeout(() => {
-                guide.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
+          guide.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
+      }
     }
     
-    // Also make the "Schnellstart-Anleitung" button work
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('a[href="#how-to-guide"]')) {
-            e.preventDefault();
-            toggleHowToGuide();
-        }
-    });
-    
-    window.addEventListener('load', () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('hash_error') === 'true') {
-            console.log("Detected hash_error parameter, fixing...");
-            fixHashError();
-        }
-    });
-    
     init();
-  
-// ==================== BANDWIDTH OPTIMIZATION: CSS for Lazy Loading ====================
-const lazyLoadingStyle = document.createElement('style');
-lazyLoadingStyle.textContent = `
-  .lazy-image.loading {
-    opacity: 0.3;
-    filter: blur(5px);
-    transition: opacity 0.3s ease, filter 0.3s ease;
-  }
-  
-  .lazy-image.error {
-    opacity: 0.5;
-    background: linear-gradient(45deg, #020617 25%, #0f172a 50%, #020617 75%);
-    background-size: 200% 200%;
-    animation: shimmer 2s infinite;
-  }
-`;
-document.head.appendChild(lazyLoadingStyle);
 
-
-
+    const lazyLoadingStyle = document.createElement('style');
+    lazyLoadingStyle.textContent = `
+      .lazy-image.loading { opacity: 0.3; filter: blur(5px); transition: opacity 0.3s ease, filter 0.3s ease; }
+      .lazy-image.error { opacity: 0.5; background: linear-gradient(45deg, #020617 25%, #0f172a 50%, #020617 75%); background-size: 200% 200%; animation: shimmer 2s infinite; }
+    `;
+    document.head.appendChild(lazyLoadingStyle);
     </script>
 </body>
 </html>
