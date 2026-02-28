@@ -603,8 +603,17 @@
       const dateInput = document.getElementById('pitch-date');
       const timeInput = document.getElementById('pitch-time');
       if (dateInput) {
-        dateInput.value = tomorrow.toISOString().split('T')[0];
-        dateInput.min = new Date().toISOString().split('T')[0];
+        // Fix timezone issue for default date
+        const year = tomorrow.getFullYear();
+        const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const date = String(tomorrow.getDate()).padStart(2, '0');
+        dateInput.value = `${year}-${month}-${date}`;
+        
+        // Also fix min date (today)
+        const todayYear = today.getFullYear();
+        const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
+        const todayDate = String(today.getDate()).padStart(2, '0');
+        dateInput.min = `${todayYear}-${todayMonth}-${todayDate}`;
       }
       if (timeInput) {
         timeInput.value = '14:00';
@@ -930,7 +939,11 @@
             const dateInput = document.getElementById('pitch-date');
             const timeInput = document.getElementById('pitch-time');
             if (dateInput && timeInput) {
-              const formattedDate = day.toISOString().split('T')[0];
+              // Fix timezone issue: use local date formatting instead of ISO string
+              const year = day.getFullYear();
+              const month = String(day.getMonth() + 1).padStart(2, '0');
+              const date = String(day.getDate()).padStart(2, '0');
+              const formattedDate = `${year}-${month}-${date}`;
               const defaultTime = '14:00'; // 2 PM default
               dateInput.value = formattedDate;
               timeInput.value = defaultTime;
