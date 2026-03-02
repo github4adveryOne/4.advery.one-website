@@ -896,7 +896,34 @@
           else closeDetail();
         }
       } catch (error) {
-        // Silently handle movie loading errors
+        console.error("Failed to load movies:", error);
+        
+        // Handle authentication errors by clearing data and forcing login
+        if (error.message.includes("401") || error.message.includes("Authentication") || error.message.includes("expired")) {
+          console.warn("Authentication failed, clearing data and forcing login...");
+          
+          // Clear all data
+          allMovies = [];
+          selectedMovie = null;
+          lastUpdateTime = null;
+          imageCache.clear();
+          
+          // Clear UI
+          renderCalendar();
+          closeDetail();
+          
+          // Force login
+          if (msalInstance) {
+            msalInstance.clearCache();
+            localStorage.removeItem('msal.idtoken');
+            localStorage.removeItem('msal.accesstoken');
+            localStorage.removeItem('msal.refreshtoken');
+            sessionStorage.clear();
+            msalInstance.loginRedirect();
+          } else {
+            window.location.reload();
+          }
+        }
       }
     }
 
