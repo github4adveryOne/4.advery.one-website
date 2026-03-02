@@ -527,7 +527,16 @@
         });
         
         if (response.status === 401) {
+          console.warn("Authentication failed (401), clearing tokens and reloading...");
+          // Clear all MSAL tokens
           msalInstance.clearCache();
+          // Clear localStorage tokens
+          localStorage.removeItem('msal.idtoken');
+          localStorage.removeItem('msal.accesstoken');
+          localStorage.removeItem('msal.refreshtoken');
+          // Clear session storage
+          sessionStorage.clear();
+          // Reload to trigger new auth flow
           window.location.reload();
           throw new Error("Authentication expired");
         }
@@ -547,6 +556,35 @@
       try {
         msalInstance = new msal.PublicClientApplication(msalConfig);
         await msalInstance.initialize();
+        
+        // Add event callback to handle token refresh failures
+        msalInstance.addEventCallback((event) => {
+          console.log("MSAL Event:", event.eventType, event.error);
+          
+          // Handle token refresh failures
+          if (event.eventType === msal.EventType.LOGIN_FAILURE || 
+              event.eventType === msal.EventType.ACQUIRE_TOKEN_FAILURE) {
+            
+            // Check for bad_token error (700084)
+            if (event.error && 
+                (event.error.errorCode === "bad_token" || 
+                 event.error.errorCode === "700084" ||
+                 (event.error.errorMessage && event.error.errorMessage.includes("700084")))) {
+              
+              console.warn("Token refresh failed with bad_token error, clearing cache and forcing login...");
+              
+              // Clear all tokens
+              msalInstance.clearCache();
+              localStorage.removeItem('msal.idtoken');
+              localStorage.removeItem('msal.accesstoken');
+              localStorage.removeItem('msal.refreshtoken');
+              sessionStorage.clear();
+              
+              // Force login
+              msalInstance.loginRedirect();
+            }
+          }
+        });
         
         // Handle redirect promise
         try {
