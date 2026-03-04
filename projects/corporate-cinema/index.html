@@ -510,6 +510,37 @@
           "Authorization": `Bearer ${idToken}`
         };
       } catch (error) {
+        // Explicitly check for interaction_required or invalid_grant
+        if (error.errorCode === "interaction_required" ||
+            error.errorCode === "invalid_grant" ||
+            (error.errorMessage && (
+              error.errorMessage.includes("AADSTS160021") ||
+              error.errorMessage.includes("AADSTS700084")
+            ))) {
+
+          console.warn("Silent token acquisition failed, forcing logout/login...");
+
+          // Clear ALL MSAL-related storage manually
+          localStorage.clear();
+          sessionStorage.clear();
+
+          // Remove MSAL cookies
+          document.cookie.split(";").forEach((cookie) => {
+            const eqPos = cookie.indexOf("=");
+            const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+            if (name.trim().startsWith("msal.")) {
+              document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+            }
+          });
+
+          // Force a full logout and redirect
+          await msalInstance.logoutRedirect({
+            postLogoutRedirectUri: window.location.origin + "/cinema/",
+          });
+          return null; 
+        }
+        
+        console.error("Auth error:", error);
         throw new Error("Authentication failed");
       }
     }
@@ -529,7 +560,16 @@
         if (response.status === 401) {
           console.warn("Authentication failed (401), clearing tokens and reloading...");
           // Clear all MSAL tokens
-          msalInstance.clearCache();
+          localStorage.clear();
+          sessionStorage.clear();
+          document.cookie.split(";").forEach((cookie) => {
+            const eqPos = cookie.indexOf("=");
+            const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+            if (name.trim().startsWith("msal.")) {
+              document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+            }
+          });
+          
           // Clear localStorage tokens
           localStorage.removeItem('msal.idtoken');
           localStorage.removeItem('msal.accesstoken');
@@ -574,7 +614,16 @@
               console.warn("Token refresh failed with bad_token error, clearing cache and forcing login...");
               
               // Clear all tokens
-              msalInstance.clearCache();
+              localStorage.clear();
+              sessionStorage.clear();
+              document.cookie.split(";").forEach((cookie) => {
+                const eqPos = cookie.indexOf("=");
+                const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+                if (name.trim().startsWith("msal.")) {
+                  document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+                }
+              });
+              
               localStorage.removeItem('msal.idtoken');
               localStorage.removeItem('msal.accesstoken');
               localStorage.removeItem('msal.refreshtoken');
@@ -914,11 +963,18 @@
           
           // Force login
           if (msalInstance) {
-            msalInstance.clearCache();
-            localStorage.removeItem('msal.idtoken');
-            localStorage.removeItem('msal.accesstoken');
-            localStorage.removeItem('msal.refreshtoken');
+            // Clear ALL MSAL-related storage manually
+            localStorage.clear();
             sessionStorage.clear();
+            document.cookie.split(";").forEach((cookie) => {
+              const eqPos = cookie.indexOf("=");
+              const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+              if (name.trim().startsWith("msal.")) {
+                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+              }
+            });
+            
+            // Redirect to login
             msalInstance.loginRedirect();
           } else {
             window.location.reload();
