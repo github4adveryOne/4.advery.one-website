@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Corporate Cinema | Programmplaner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    // Load MSAL library with local-first approach
+    function loadMSAL() {
+      // Try local copy first
+      const localScript = document.createElement('script');
+      localScript.src = '/cinema/msal-browser.min.js';
+      
+      localScript.onerror = function() {
+        // Local copy failed, try CDN fallback
+        const cdnScript = document.createElement('script');
+        cdnScript.src = 'https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js';
+        
+        cdnScript.onerror = function() {
+          // Both local and CDN failed
+          document.getElementById('auth-screen').innerHTML = '<div class="text-center p-10"><h2 class="text-red-500 mb-4">Authentication library failed to load</h2><p class="text-slate-400">Please check your connection and refresh.</p></div>';
+        };
+        
+        cdnScript.onload = function() {
+          // CDN fallback loaded successfully, continue with initialization
+          initializeApp();
+        };
+        
+        document.head.appendChild(cdnScript);
+      };
+      
+      localScript.onload = function() {
+        // Local copy loaded successfully, continue with initialization
+        initializeApp();
+      };
+      
+      document.head.appendChild(localScript);
+    }
+    
+    // Start loading MSAL when DOM is ready
+    document.addEventListener('DOMContentLoaded', loadMSAL);
+  </script>
+  <style>
+    body { background: #020617; color: #f8fafc; font-family: 'Inter', sans-serif; }
+    .glass { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .modal { background: rgba(2, 6, 23, 0.96); backdrop-filter: blur(20px); z-index: 100; }
+    
+    /* Calendar Grid Responsiveness */
+    .calendar-grid { 
+        display: grid; 
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1px;
+        background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .calendar-day { 
+        background: #020617;
+        min-height: 250px; 
+        transition: all 0.3s ease;
+        padding: 1rem;
+    }
+    
+    .calendar-day.today { background: rgba(34, 211, 238, 0.03); }
+    
+    /* Movie Mini Card */
+    .mini-movie {
+        position: relative;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        aspect-ratio: 2/3;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .mini-movie:hover { transform: scale(1.05); z-index: 10; border-color: #22d3ee; box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
+    
+    .mini-movie-info {
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        padding: 0.5rem;
+        background: linear-gradient(to top, rgba(2, 6, 23, 0.95), transparent);
+    }
+    
+    .mini-movie.greenlit { border-color: #22d3ee; }
+    .mini-movie.greenlit::after {
+        content: 'PREMIERE!';
+        position: absolute;
+        top: 0.5rem; right: 0.5rem;
+        background: #22d3ee; color: #020617;
+        font-size: 8px; font-weight: 900;
+        padding: 2px 4px; border-radius: 4px;
+        letter-spacing: 0.05em;
+    }
+
+    .poster-loading-shimmer {
+        background: linear-gradient(90deg, #0f172a 25%, #1e293b 50%, #0f172a 75%);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+    /* Fix for datetime-local icon color in some browsers */
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+    }
+    
+    .status-badge {
+        font-size: 8px;
+        font-weight: 900;
+        padding: 2px 6px;
+        border-radius: 4px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .status-processing { background: #94a3b8; color: #020617; }
+    .status-failed { background: #ef4444; color: #ffffff; }
+    
+    /* Animated background */
+    body::before {
+        content: "";
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.05) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: -1;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- Auth Screen -->
+  <div id="auth-screen" class="min-h-screen flex items-center justify-center p-6">
+    <div class="glass max-w-md w-full p-10 text-center rounded-[2.5rem] shadow-2xl">
+      <i data-lucide="clapperboard" class="h-16 w-16 text-cyan-400 mx-auto mb-6"></i>
+      <h1 class="text-4xl font-black mb-2 tracking-tight uppercase">Corporate Cinema</h1>
+      <p class="text-slate-400 mb-10 text-lg italic">Wissen ist das neue Blockbuster-Kino.</p>
+      <button id="login-btn" class="w-full bg-white text-slate-900 px-6 py-4 rounded-2xl flex items-center justify-center gap-4 hover:bg-cyan-50 transition-all font-bold uppercase tracking-widest text-sm shadow-xl shadow-cyan-500/10">
+        Mitarbeiter-Login
+      </button>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="app-screen" class="hidden min-h-screen">
+    <nav class="border-b border-slate-800 bg-slate-950/50 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-[1600px] mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <i data-lucide="film" class="h-8 w-8 text-cyan-500"></i>
+                <div>
+                    <h2 class="font-black uppercase tracking-tighter leading-none">Corporate Cinema</h2>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Programmübersicht</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-6">
+                <button onclick="document.getElementById('how-to-guide').classList.toggle('hidden')" class="hidden md:flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition font-bold text-xs uppercase tracking-widest">
+                    <i data-lucide="help-circle" class="h-4 w-4"></i>
+                    How It Works
+                </button>
+                <div class="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800">
+                    <span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+                    <span id="user-display" class="text-xs font-black uppercase text-slate-300"></span>
+                </div>
+                <button id="logout-btn" class="text-slate-500 hover:text-red-400 transition"><i data-lucide="log-out" class="h-5 w-5"></i></button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-[1600px] mx-auto p-6 lg:p-10">
+        <section class="mb-12 flex flex-col lg:flex-row justify-between items-end gap-8">
+            <div class="max-w-3xl">
+                <h1 class="text-6xl font-black tracking-tighter mb-4 uppercase leading-none">Filmreife <span class="text-cyan-500">Vorträge.</span></h1>
+                <p class="text-slate-400 text-lg leading-relaxed">Entdecke das Wissen deiner Kollegen. Jede Präsentation ist ein kompakter 10-Minuten-Input ohne lange Diskussionen. Sichere dir dein Ticket, um die Premiere freizuschalten. <span class="text-orange-500 font-bold">Ohne genug Zuschauer, kein Kinostart!</span></p>
+                
+                <!-- Call-to-Action Button for New Users -->
+                <div class="mt-8 flex flex-wrap items-center gap-4">
+                    <button onclick="toggleHowToGuide()" class="bg-gradient-to-r from-cyan-500 to-emerald-500 text-white px-8 py-4 rounded-2xl font-black hover:opacity-90 transition flex items-center gap-3 shadow-lg shadow-cyan-500/20 uppercase tracking-tight text-sm">
+                        <i data-lucide="clock" class="h-5 w-5"></i>
+                        Wie 10-Minuten-Wissen funktioniert
+                    </button>
+                    <span class="text-slate-500 text-sm italic hidden md:inline">Lerne das Konzept hinter unseren effizienten Wissenssessions kennen</span>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-4">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500">Zeitraum wählen</label>
+                    <div class="flex glass p-1 rounded-xl">
+                        <button onclick="setDays(7)" id="btn-7" class="px-4 py-2 rounded-lg text-xs font-black uppercase transition">7 Tage</button>
+                        <button onclick="setDays(14)" id="btn-14" class="px-4 py-2 rounded-lg text-xs font-black uppercase transition">14 Tage</button>
+                        <button onclick="setDays(30)" id="btn-30" class="px-4 py-2 rounded-lg text-xs font-black uppercase transition">30 Tage</button>
+                    </div>
+                </div>
+                <button id="open-pitch-modal" class="bg-cyan-500 text-slate-950 px-8 py-5 rounded-2xl font-black hover:bg-cyan-400 transition shadow-lg shadow-cyan-500/20 uppercase tracking-tight text-sm">
+                    Eigenen Film Pitchen
+                </button>
+            </div>
+        </section>
+
+        <!-- Calendar Grid -->
+        <div id="calendar-grid" class="calendar-grid rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-3xl mb-12">
+            <!-- Days generated by JS -->
+        </div>
+
+        <!-- How It Works Section -->
+        <section class="glass rounded-[2.5rem] p-8 md:p-12 mb-12 border border-slate-800">
+            <div class="flex flex-col lg:flex-row items-start gap-8 md:gap-12">
+                <div class="lg:w-2/3">
+                    <h2 class="text-3xl md:text-4xl font-black mb-6 tracking-tighter uppercase">🎬 Das Konzept: Wissen als Kurzfilm</h2>
+                    <div class="space-y-6">
+                        <div class="flex items-start gap-4">
+                            <div class="bg-cyan-500/10 p-3 rounded-xl shrink-0">
+                                <i data-lucide="clock" class="h-6 w-6 text-cyan-400"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold mb-2 text-white">1. 10-Minuten-Format</h3>
+                                <p class="text-slate-400">Jeder "Film" ist ein kompakter 10-Minuten-Input. Keine langen Präsentationen, keine ausufernden Diskussionen. Nur reines, fokussiertes Wissen – wie ein TED Talk für interne Expertise.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-4">
+                            <div class="bg-emerald-500/10 p-3 rounded-xl shrink-0">
+                                <i data-lucide="mic" class="h-6 w-6 text-emerald-400"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold mb-2 text-white">2. One-Way Knowledge Transfer</h3>
+                                <p class="text-slate-400">Der Referent präsentiert sein Wissen ohne Unterbrechungen. Fragen werden auf ein Minimum beschränkt – das Ziel ist effiziente Wissensvermittlung, nicht Diskussion. Perfekt für Prozesse, Tools oder Quick-Tipps.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-4">
+                            <div class="bg-orange-500/10 p-3 rounded-xl shrink-0">
+                                <i data-lucide="ticket" class="h-6 w-6 text-orange-400"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold mb-2 text-white">3. Crowd-Funding für Wissen</h3>
+                                <p class="text-slate-400">Erst wenn genügend Interesse (Tickets) da ist, findet die Session statt. So vermeiden wir leere "Kinosäle" und stellen sicher, dass Wissen nur geteilt wird, wenn es auch nachgefragt wird.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="lg:w-1/3 glass rounded-2xl p-6 border border-slate-800">
+                    <h3 class="text-xl font-black mb-4 uppercase tracking-tight">⏱️ Das 10-Minuten-Versprechen</h3>
+                    <p class="text-slate-400 mb-4 text-sm">Corporate Cinema revolutioniert Meetings: Statt stundenlanger Diskussionen gibt es kompakte Wissenshäppchen. Jeder "Film" ist auf Effizienz optimiert.</p>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="zap" class="h-4 w-4 text-amber-500"></i>
+                            <span class="text-slate-300">Maximal 10 Minuten pro Session</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="mic-off" class="h-4 w-4 text-rose-500"></i>
+                            <span class="text-slate-300">Minimale Fragen, maximaler Input</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="brain" class="h-4 w-4 text-cyan-500"></i>
+                            <span class="text-slate-300">Fokussiertes Fachwissen statt Diskussion</span>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-slate-800">
+                        <p class="text-xs text-slate-500 italic">Perfekt für: Tool-Demos, Prozess-Erklärungen, Quick-Tipps, Best Practices</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How-To Guide (hidden by default, shown when clicking the button) -->
+        <div id="how-to-guide" class="hidden glass rounded-[2.5rem] p-8 md:p-12 mb-12 border border-slate-800">
+            <div class="flex justify-between items-start mb-8">
+                <h2 class="text-3xl md:text-4xl font-black tracking-tighter uppercase">📖 Schnellstart-Anleitung</h2>
+                <button onclick="document.getElementById('how-to-guide').classList.add('hidden')" class="text-slate-500 hover:text-white p-2">
+                    <i data-lucide="x" class="h-6 w-6"></i>
+                </button>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="space-y-6">
+                    <h3 class="text-xl font-bold text-white mb-4">🎯 Als Zuschauer</h3>
+                    <ol class="space-y-4">
+                        <li class="flex items-start gap-3">
+                            <span class="bg-cyan-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">1</span>
+                            <span class="text-slate-300">Durchstöbere den Kalender nach interessanten Themen</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="bg-cyan-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">2</span>
+                            <span class="text-slate-300">Klicke auf einen Film, um Details zu sehen</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="bg-cyan-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">3</span>
+                            <span class="text-slate-300">Sichere dir ein Ticket mit "Platz reservieren"</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="bg-cyan-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">4</span>
+                            <span class="text-slate-300">Erhalte eine Benachrichtigung, sobald genug Tickets verkauft sind und die Premiere stattfindet</span>
+                        </li>
+                    </ol>
+                </div>
+                
+                <div class="space-y-6">
+                    <h3 class="text-xl font-bold text-white mb-4">🎤 Als Referent</h3>
+                    <ol class="space-y-4">
+                        <li class="flex items-start gap-3">
+                            <span class="bg-emerald-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">1</span>
+                            <span class="text-slate-300">Klicke auf "Eigenen Film Pitchen" oben rechts</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="bg-emerald-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">2</span>
+                            <span class="text-slate-300">Beschreibe dein Thema – unsere KI hilft beim Titel</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="bg-emerald-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">3</span>
+                            <span class="text-slate-300">Setze die Mindestteilnehmerzahl und den Termin</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="bg-emerald-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">4</span>
+                            <span class="text-slate-300">Warte auf genügend Tickets – dann geht's los!</span>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="mt-10 pt-8 border-t border-slate-800">
+                <h3 class="text-xl font-bold text-white mb-4">💡 Tipps für 10-Minuten-Wissen</h3>
+                <ul class="grid md:grid-cols-2 gap-4 text-slate-300">
+                    <li class="flex items-center gap-3"><i data-lucide="clock" class="h-5 w-5 text-amber-500"></i> <strong>Strict 10-minute rule:</strong> Übe mit Timer</li>
+                    <li class="flex items-center gap-3"><i data-lucide="mic-off" class="h-5 w-5 text-rose-500"></i> <strong>No Q&A during:</strong> Fragen nur am Ende (1-2 max)</li>
+                    <li class="flex items-center gap-3"><i data-lucide="zap" class="h-5 w-5 text-cyan-500"></i> <strong>One key message:</strong> Fokus auf einen Kernpunkt</li>
+                    <li class="flex items-center gap-3"><i data-lucide="target" class="h-5 w-5 text-emerald-500"></i> <strong>Actionable takeaways:</strong> Was können Zuschauer sofort umsetzen?</li>
+                </ul>
+                <div class="mt-6 p-4 bg-slate-900/50 rounded-xl border border-slate-800">
+                    <p class="text-sm text-slate-400 italic">🎯 <strong>Ideal für:</strong> "How I fixed X", "Quick intro to Y", "Our process for Z", "Tool tip that saved me hours"</p>
+                </div>
+            </div>
+        </div>
+    </main>
+  </div>
+
+  <!-- Detail Modal -->
+  <div id="detail-modal" class="fixed inset-0 modal hidden items-center justify-center p-4 md:p-6 overflow-y-auto">
+    <div class="glass max-w-4xl w-full rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl flex flex-col md:flex-row relative border-slate-700/50 my-auto">
+      <button onclick="closeDetail()" class="absolute top-4 right-4 md:top-6 md:right-6 p-2 bg-black/50 hover:bg-black rounded-full text-white z-20 transition"><i data-lucide="x"></i></button>
+      
+      <div class="w-full md:w-5/12 h-64 md:h-auto poster-placeholder relative shrink-0">
+        <img id="detail-poster" src="" class="w-full h-full object-cover hidden" />
+        <div id="detail-poster-loading" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3">
+            <i data-lucide="loader" class="h-10 w-10 animate-spin text-cyan-500"></i>
+            <span class="text-[10px] font-black uppercase tracking-widest italic">KI erstellt Filmplakat...</span>
+        </div>
+      </div>
+
+      <div class="p-6 md:p-12 flex-1 flex flex-col justify-between bg-slate-900/60 overflow-y-auto">
+        <div>
+          <div class="flex justify-between items-start mb-4 md:mb-6">
+            <div class="flex items-center gap-3">
+                <span class="bg-cyan-500/10 text-cyan-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-cyan-500/20">Wissenstransfer</span>
+                <span id="greenlight-badge" class="hidden bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-emerald-500/20">PREMIERE!</span>
+            </div>
+            <div id="owner-actions" class="hidden">
+                <button id="delete-btn" class="flex items-center gap-2 text-red-500 hover:text-red-400 font-black text-[10px] transition uppercase tracking-widest">
+                    <i data-lucide="trash-2" class="h-4 w-4"></i> Film absagen
+                </button>
+            </div>
+          </div>
+          <h2 id="detail-title" class="text-3xl md:text-5xl font-black mb-4 md:mb-6 tracking-tighter leading-[0.9]"></h2>
+          <p id="detail-desc" class="text-slate-400 leading-relaxed mb-6 md:mb-10 text-base md:text-lg"></p>
+          
+          <div class="grid grid-cols-2 gap-4 md:gap-8 mb-6 md:mb-10 border-t border-slate-800 pt-6 md:pt-8">
+            <div>
+                <span class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Regie</span>
+                <div class="flex items-center gap-3">
+                    <div id="detail-avatar" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-cyan-500"></div>
+                    <span id="detail-director" class="font-bold text-white uppercase text-sm"></span>
+                </div>
+            </div>
+            <div>
+                <span class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Kinostart</span>
+                <span id="detail-date" class="font-bold text-white uppercase text-sm"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+            <div class="glass p-6 rounded-3xl border-slate-700/30">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Zuschauer-Resonanz</span>
+                    <span id="detail-ticket-count" class="text-sm font-black text-cyan-400"></span>
+                </div>
+                <div class="h-3 w-full bg-slate-950 rounded-full overflow-hidden mb-4 p-0.5 border border-slate-800">
+                    <div id="detail-progress" class="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                </div>
+                <p id="greenlight-hint" class="text-[10px] text-slate-500 font-medium">Sobald die Schwelle erreicht ist, wird die Premiere automatisch als Teams-Meeting geplant.</p>
+            </div>
+            <button id="buy-btn" class="w-full py-6 bg-cyan-500 text-slate-950 rounded-[1.5rem] font-black tracking-tight hover:bg-cyan-400 hover:scale-[1.01] transition-all uppercase text-lg shadow-xl shadow-cyan-900/20">Ticket sichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pitch Modal -->
+  <div id="pitch-modal" class="fixed inset-0 modal hidden items-center justify-center p-6">
+    <div class="glass max-w-xl w-full p-12 rounded-[3.5rem] shadow-2xl relative border-cyan-500/20">
+      <button id="close-pitch-modal" class="absolute top-8 right-8 text-slate-500 hover:text-white"><i data-lucide="x"></i></button>
+      <div class="mb-10">
+          <h2 class="text-4xl font-black mb-2 tracking-tight uppercase">Film-Pitch einreichen</h2>
+          <p class="text-slate-400 text-sm">Was ist das Thema deines 10-Minuten-Blockbusters?</p>
+      </div>
+      <form id="pitch-form" class="space-y-8">
+        <div class="space-y-6">
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 ml-1">Handlung / Kernbotschaft</label>
+            <textarea id="pitch-desc" required rows="4" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 focus:border-cyan-500 transition outline-none text-white leading-relaxed" placeholder="Beschreibe kurz dein Thema. Unsere KI erstellt daraus einen Filmtitel und ein Plakat."></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-6">
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 ml-1">Premiere Datum</label>
+              <input type="date" id="pitch-date" required class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 focus:border-cyan-500 transition outline-none text-white text-sm [color-scheme:dark]" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 ml-1">Uhrzeit</label>
+              <input type="time" id="pitch-time" required min="10:00" max="15:59" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 focus:border-cyan-500 transition outline-none text-white text-sm [color-scheme:dark]" />
+            </div>
+            <div class="col-span-2">
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 ml-1">Ticket-Limit</label>
+              <input type="number" id="pitch-threshold" value="5" min="1" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 focus:border-cyan-500 transition outline-none text-white" />
+            </div>
+          </div>
+        </div>
+        <button type="submit" id="submit-pitch" class="w-full bg-white text-slate-950 py-5 rounded-2xl font-black hover:bg-cyan-400 transition uppercase tracking-widest text-sm shadow-xl shadow-cyan-900/20">Projekt Veröffentlichen</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- AI Modal -->
+  <div id="ai-modal" class="fixed inset-0 modal hidden items-center justify-center p-6">
+    <div class="glass max-w-md w-full p-12 rounded-[3.5rem] shadow-2xl text-center border-cyan-500/20">
+      <div class="flex justify-center mb-8"><div class="bg-cyan-500/20 p-6 rounded-full shadow-lg"><i data-lucide="sparkles" class="h-12 w-12 text-cyan-400"></i></div></div>
+      <h2 class="text-xs font-black uppercase tracking-[0.5em] text-cyan-500 mb-4">Script-Check abgeschlossen</h2>
+      <p class="text-slate-400 text-sm mb-8 px-4">Unsere KI-Filmagentur hat basierend auf deiner Beschreibung folgenden Titel festgelegt:</p>
+      <h3 id="ai-generated-title" class="text-4xl font-black italic mb-12 tracking-tighter text-white uppercase leading-[0.85]"></h3>
+      <button id="close-ai-modal" class="w-full bg-white text-black py-5 rounded-2xl font-black hover:bg-cyan-400 transition uppercase text-xs tracking-widest">In den Spielplan aufnehmen</button>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-10 right-10 glass px-6 py-4 rounded-2xl translate-y-20 opacity-0 transition-all duration-300 z-[200] flex items-center gap-3 border-cyan-500/50">
+    <i data-lucide="info" class="text-cyan-400"></i><span id="toast-msg" class="font-bold text-sm text-white"></span>
+  </div>
+
+  <script>
+    const TENANT_ID = "b2057218-c748-4a02-a220-1309d3034ba1";
+    // Not using API scope anymore - using ID tokens instead
+    // const API_SCOPE = "api://6ff61b4c-46af-4452-b405-5b359e83c843/access";
+    const msalConfig = {
+      auth: { 
+        clientId: "6ff61b4c-46af-4452-b405-5b359e83c843", 
+        authority: `https://login.microsoftonline.com/${TENANT_ID}`, 
+        redirectUri: window.location.origin + "/cinema/", 
+        postLogoutRedirectUri: window.location.origin + "/cinema/",
+        navigateToLoginRequestUrl: false
+      },
+      cache: { 
+        cacheLocation: "localStorage", 
+        storeAuthStateInCookie: true 
+      },
+      system: {
+        allowNativeBroker: false,
+        windowHashTimeout: 10000,
+        iframeHashTimeout: 10000,
+        loadFrameTimeout: 10000
+      }
+    };
+    
+    let msalInstance, currentUser, allMovies = [], selectedMovie = null, calendarDays = 7;
+    let lastUpdateTime = null;
+    const imageCache = new Map();
+
+    // Global error handler
+    window.onerror = function(message, source, lineno, colno, error) {
+      if (typeof showToast === 'function') showToast("Systemfehler: " + message);
+      return false;
+    };
+
+    // Helper function to get authentication headers
+    async function getAuthHeaders() {
+      if (!msalInstance || !currentUser) {
+        throw new Error("Not authenticated");
+      }
+      
+      try {
+        // Get an ID token by requesting openid scope
+        // This will return the ID token (not access token)
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          scopes: ["openid"],  // Request ID token
+          account: currentUser
+        });
+        
+        // tokenResponse should contain idToken
+        const idToken = tokenResponse.idToken;
+        
+        if (!idToken) {
+          throw new Error("No ID token available");
+        }
+        
+        return {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        };
+      } catch (error) {
+        // Explicitly check for interaction_required or invalid_grant
+        if (error.errorCode === "interaction_required" ||
+            error.errorCode === "invalid_grant" ||
+            (error.errorMessage && (
+              error.errorMessage.includes("AADSTS160021") ||
+              error.errorMessage.includes("AADSTS700084")
+            ))) {
+
+          console.warn("Silent token acquisition failed, forcing logout/login...");
+
+          // Clear ALL MSAL-related storage manually
+          localStorage.clear();
+          sessionStorage.clear();
+
+          // Remove MSAL cookies
+          document.cookie.split(";").forEach((cookie) => {
+            const eqPos = cookie.indexOf("=");
+            const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+            if (name.trim().startsWith("msal.")) {
+              document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+            }
+          });
+
+          // Force a full logout and redirect
+          await msalInstance.logoutRedirect({
+            postLogoutRedirectUri: window.location.origin + "/cinema/",
+          });
+          return null; 
+        }
+        
+        console.error("Auth error:", error);
+        throw new Error("Authentication failed");
+      }
+    }
+    
+    // Helper function for authenticated fetch
+    async function authFetch(url, options = {}) {
+      try {
+        const authHeaders = await getAuthHeaders();
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            ...authHeaders,
+            ...options.headers
+          }
+        });
+        
+        if (response.status === 401) {
+          console.warn("Authentication failed (401), clearing tokens and reloading...");
+          // Clear all MSAL tokens
+          localStorage.clear();
+          sessionStorage.clear();
+          document.cookie.split(";").forEach((cookie) => {
+            const eqPos = cookie.indexOf("=");
+            const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+            if (name.trim().startsWith("msal.")) {
+              document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+            }
+          });
+          
+          // Clear localStorage tokens
+          localStorage.removeItem('msal.idtoken');
+          localStorage.removeItem('msal.accesstoken');
+          localStorage.removeItem('msal.refreshtoken');
+          // Clear session storage
+          sessionStorage.clear();
+          // Reload to trigger new auth flow
+          window.location.reload();
+          throw new Error("Authentication expired");
+        }
+        
+        if (response.status === 403) {
+          showToast("Zugriff verweigert. Keine Berechtigung.");
+          throw new Error("Access denied");
+        }
+        
+        return response;
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    async function init() {
+      try {
+        msalInstance = new msal.PublicClientApplication(msalConfig);
+        await msalInstance.initialize();
+        
+        // Add event callback to handle token refresh failures
+        msalInstance.addEventCallback((event) => {
+          console.log("MSAL Event:", event.eventType, event.error);
+          
+          // Handle token refresh failures
+          if (event.eventType === msal.EventType.LOGIN_FAILURE || 
+              event.eventType === msal.EventType.ACQUIRE_TOKEN_FAILURE) {
+            
+            // Check for bad_token error (700084)
+            if (event.error && 
+                (event.error.errorCode === "bad_token" || 
+                 event.error.errorCode === "700084" ||
+                 (event.error.errorMessage && event.error.errorMessage.includes("700084")))) {
+              
+              console.warn("Token refresh failed with bad_token error, clearing cache and forcing login...");
+              
+              // Clear all tokens
+              localStorage.clear();
+              sessionStorage.clear();
+              document.cookie.split(";").forEach((cookie) => {
+                const eqPos = cookie.indexOf("=");
+                const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+                if (name.trim().startsWith("msal.")) {
+                  document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+                }
+              });
+              
+              localStorage.removeItem('msal.idtoken');
+              localStorage.removeItem('msal.accesstoken');
+              localStorage.removeItem('msal.refreshtoken');
+              sessionStorage.clear();
+              
+              // Force login
+              msalInstance.loginRedirect();
+            }
+          }
+        });
+        
+        // Handle redirect promise
+        try {
+            const resp = await msalInstance.handleRedirectPromise();
+            if (resp) {
+                currentUser = resp.account;
+                // Store ID token from response
+                if (resp.idToken) {
+                    currentUser.idToken = resp.idToken;
+                }
+                if (window.location.hash) {
+                    window.location.hash = "";
+                }
+                showApp();
+                setupEventListeners(); // Setup listeners even if app shown
+                return;
+            }
+        } catch (hashError) {
+            if (hashError.errorCode === "hash_empty_error" || (hashError.message && hashError.message.includes("hash_empty_error"))) {
+                if (window.location.hash) {
+                    window.location.hash = "";
+                }
+            } else {
+                throw hashError;
+            }
+        }
+        
+        // Check cache
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+          currentUser = accounts[0];
+          // For cached accounts, we don't have ID token yet
+          // It will be fetched when needed by getAuthHeaders()
+          showApp();
+        }
+        
+        setupEventListeners();
+      } catch (e) { 
+        showToast("Initialisierung fehlgeschlagen: " + e.message);
+      }
+      lucide.createIcons();
+    }
+
+    function setupEventListeners() {
+      // Set default date/time for pitch form
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      
+      // Skip weekends
+      if (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate() + 1);
+      if (tomorrow.getDay() === 6) tomorrow.setDate(tomorrow.getDate() + 2);
+      
+      const dateInput = document.getElementById('pitch-date');
+      const timeInput = document.getElementById('pitch-time');
+      if (dateInput) {
+        // Fix timezone issue for default date
+        const year = tomorrow.getFullYear();
+        const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const date = String(tomorrow.getDate()).padStart(2, '0');
+        dateInput.value = `${year}-${month}-${date}`;
+        
+        // Also fix min date (today)
+        const todayYear = today.getFullYear();
+        const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
+        const todayDate = String(today.getDate()).padStart(2, '0');
+        dateInput.min = `${todayYear}-${todayMonth}-${todayDate}`;
+      }
+      if (timeInput) {
+        timeInput.value = '14:00';
+      }
+      
+      const loginBtn = document.getElementById("login-btn");
+      if (loginBtn) {
+        loginBtn.onclick = async () => {
+          const loginRequest = {
+              scopes: ["openid"],  // Minimal scope
+              prompt: "select_account"
+          };
+          try {
+              await msalInstance.loginRedirect(loginRequest);
+          } catch (e) {
+              showToast("Login fehlgeschlagen: " + e.message);
+          }
+        };
+      }
+
+      const logoutBtn = document.getElementById("logout-btn");
+      if (logoutBtn) {
+        logoutBtn.onclick = () => { 
+          msalInstance.logoutRedirect({
+            postLogoutRedirectUri: window.location.origin + "/cinema/"
+          }); 
+        };
+      }
+
+      const openPitchBtn = document.getElementById("open-pitch-modal");
+      if (openPitchBtn) {
+        openPitchBtn.onclick = () => document.getElementById("pitch-modal").classList.replace("hidden", "flex");
+      }
+      
+      const closePitchBtn = document.getElementById("close-pitch-modal");
+      if (closePitchBtn) {
+        closePitchBtn.onclick = () => document.getElementById("pitch-modal").classList.replace("flex", "hidden");
+      }
+
+      const closeAiModalBtn = document.getElementById("close-ai-modal");
+      if (closeAiModalBtn) {
+        closeAiModalBtn.onclick = () => document.getElementById("ai-modal").classList.replace("flex", "hidden");
+      }
+
+      const pitchForm = document.getElementById("pitch-form");
+      if (pitchForm) {
+        pitchForm.onsubmit = async (e) => {
+          e.preventDefault();
+          const pitchDateStr = document.getElementById("pitch-date").value;
+          const pitchTime = document.getElementById("pitch-time").value;
+          const pitchDate = new Date(pitchDateStr);
+          if (pitchDate.getDay() === 0 || pitchDate.getDay() === 6) {
+              showToast("Das Kino ist am Wochenende geschlossen!");
+              return;
+          }
+          
+          const btn = document.getElementById("submit-pitch");
+          btn.disabled = true; btn.textContent = "KI-AGENTS ANALYSIEREN...";
+          
+          const payload = { 
+              description: document.getElementById("pitch-desc").value, 
+              threshold: parseInt(document.getElementById("pitch-threshold").value), 
+              premierAt: `${pitchDateStr}T${pitchTime}`, 
+              director: currentUser.name, 
+              directorEmail: currentUser.username 
+          };
+          try {
+            const res = await authFetch("/api/n8n/add-movie", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById("pitch-modal").classList.replace("flex", "hidden");
+                document.getElementById("pitch-form").reset();
+                document.getElementById("ai-generated-title").textContent = data.title;
+                document.getElementById("ai-modal").classList.replace("hidden", "flex");
+                loadMovies();
+            } else if (data.error) {
+                showToast(data.error);
+            }
+          } catch (err) { } finally { btn.disabled = false; btn.textContent = "FILMPROJEKT EINREICHEN"; }
+        };
+      }
+    }
+
+    function showApp() {
+      const userDomain = currentUser.username.split('@')[1];
+      const allowedDomains = ['cervis.de', 'advery.one', 'example.com'];
+      
+      if (!allowedDomains.includes(userDomain)) {
+        showToast(`Zugriff verweigert. Domain ${userDomain} ist nicht autorisiert.`);
+        // Wait 3 seconds before logout so user can see the message
+        setTimeout(() => {
+          msalInstance.logoutRedirect({
+            postLogoutRedirectUri: window.location.origin + "/cinema/"
+          });
+        }, 3000);
+        return;
+      }
+      
+      document.getElementById("auth-screen").classList.add("hidden");
+      document.getElementById("app-screen").classList.remove("hidden");
+      document.getElementById("user-display").textContent = currentUser.name;
+      setDays(calendarDays);
+      loadMovies(); 
+      setInterval(loadMovies, 10000);
+    }
+
+    function setDays(n) {
+        calendarDays = n;
+        [7, 14, 30].forEach(d => {
+            const btn = document.getElementById(`btn-${d}`);
+            if (btn) {
+                if (d === n) {
+                    btn.classList.add('bg-cyan-500', 'text-slate-950');
+                    btn.classList.remove('text-slate-500', 'hover:text-white');
+                } else {
+                    btn.classList.remove('bg-cyan-500', 'text-slate-950');
+                    btn.classList.add('text-slate-500', 'hover:text-white');
+                }
+            }
+        });
+        renderCalendar();
+    }
+
+    async function loadMovieImage(movieId, imgElement) {
+      if (imageCache.has(movieId)) {
+        imgElement.src = imageCache.get(movieId);
+        imgElement.classList.remove('loading');
+        // Show image and hide loading indicators
+        imgElement.classList.remove('hidden');
+        // Hide shimmer if it exists (calendar view)
+        const shimmer = imgElement.previousElementSibling;
+        if (shimmer && shimmer.classList.contains('poster-loading-shimmer')) {
+          shimmer.style.display = 'none';
+        }
+        // Hide detail loading indicator if it exists
+        const detailLoading = document.getElementById('detail-poster-loading');
+        if (detailLoading && imgElement.id === 'detail-poster') {
+          detailLoading.style.display = 'none';
+        }
+        return;
+      }
+      imgElement.classList.add('loading');
+      try {
+        const response = await authFetch(`/api/n8n/image/${movieId}`);
+        if (response.ok) {
+          const blob = await response.blob();
+          const imageUrl = URL.createObjectURL(blob);
+          imageCache.set(movieId, imageUrl);
+          imgElement.src = imageUrl;
+          imgElement.classList.remove('loading');
+          // Show image and hide loading indicators
+          imgElement.classList.remove('hidden');
+          // Hide shimmer when image loads (calendar view)
+          const shimmer = imgElement.previousElementSibling;
+          if (shimmer && shimmer.classList.contains('poster-loading-shimmer')) {
+            shimmer.style.display = 'none';
+          }
+          // Hide detail loading indicator if it exists
+          const detailLoading = document.getElementById('detail-poster-loading');
+          if (detailLoading && imgElement.id === 'detail-poster') {
+            detailLoading.style.display = 'none';
+          }
+        } else {
+          imgElement.classList.add('error');
+          // Keep shimmer visible on error as fallback (calendar view)
+          // For detail view, show error state
+          if (imgElement.id === 'detail-poster') {
+            const detailLoading = document.getElementById('detail-poster-loading');
+            if (detailLoading) {
+              detailLoading.innerHTML = '<i data-lucide="alert-circle" class="h-10 w-10 text-rose-500"></i><span class="text-[10px] font-black uppercase tracking-widest italic">Fehler beim Laden</span>';
+              lucide.createIcons();
+            }
+          }
+        }
+      } catch (error) {
+        imgElement.classList.add('error');
+        // Keep shimmer visible on error as fallback (calendar view)
+        // For detail view, show error state
+        if (imgElement.id === 'detail-poster') {
+          const detailLoading = document.getElementById('detail-poster-loading');
+          if (detailLoading) {
+            detailLoading.innerHTML = '<i data-lucide="alert-circle" class="h-10 w-10 text-rose-500"></i><span class="text-[10px] font-black uppercase tracking-widest italic">Fehler beim Laden</span>';
+            lucide.createIcons();
+          }
+        }
+      }
+    }
+
+    async function loadMovies() {
+      let url = '/api/n8n/get-movies';
+      if (lastUpdateTime) {
+        url = `/api/n8n/get-movies-since?since=${encodeURIComponent(lastUpdateTime)}`;
+      }
+      
+      try {
+        const res = await authFetch(url);
+        const newMovies = await res.json();
+        if (newMovies.length === 0) return;
+        
+        const timestamps = newMovies.map(m => m.updated_at).filter(t => t);
+        if (timestamps.length > 0) {
+          lastUpdateTime = timestamps.sort().reverse()[0];
+        }
+        
+        const newMoviesMap = new Map();
+        newMovies.forEach(movie => newMoviesMap.set(movie.id, movie));
+        
+        const updatedMovies = [];
+        let hasChanges = false;
+        
+        for (const existingMovie of allMovies) {
+          if (newMoviesMap.has(existingMovie.id)) {
+            const newMovie = newMoviesMap.get(existingMovie.id);
+            if (!newMovie.posterUrl && existingMovie.posterUrl) {
+              newMovie.posterUrl = existingMovie.posterUrl;
+            }
+            if (!newMovie.isCancelled) {
+              updatedMovies.push(newMovie);
+            }
+            newMoviesMap.delete(existingMovie.id);
+            hasChanges = true;
+          } else {
+            updatedMovies.push(existingMovie);
+          }
+        }
+        
+        for (const [id, movie] of newMoviesMap) {
+          if (!movie.isCancelled) {
+            updatedMovies.push(movie);
+            hasChanges = true;
+          }
+        }
+        
+        if (hasChanges) {
+          allMovies = updatedMovies;
+          renderCalendar();
+        }
+
+        if (selectedMovie) {
+          const updated = allMovies.find(m => m.id === selectedMovie.id);
+          if (updated) updateDetailUI(updated);
+          else closeDetail();
+        }
+      } catch (error) {
+        console.error("Failed to load movies:", error);
+        
+        // Handle authentication errors by clearing data and forcing login
+        if (error.message.includes("401") || error.message.includes("Authentication") || error.message.includes("expired")) {
+          console.warn("Authentication failed, clearing data and forcing login...");
+          
+          // Clear all data
+          allMovies = [];
+          selectedMovie = null;
+          lastUpdateTime = null;
+          imageCache.clear();
+          
+          // Clear UI
+          renderCalendar();
+          closeDetail();
+          
+          // Force login
+          if (msalInstance) {
+            // Clear ALL MSAL-related storage manually
+            localStorage.clear();
+            sessionStorage.clear();
+            document.cookie.split(";").forEach((cookie) => {
+              const eqPos = cookie.indexOf("=");
+              const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+              if (name.trim().startsWith("msal.")) {
+                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+              }
+            });
+            
+            // Redirect to login
+            msalInstance.loginRedirect();
+          } else {
+            window.location.reload();
+          }
+        }
+      }
+    }
+
+    function renderCalendar() {
+      const grid = document.getElementById("calendar-grid");
+      grid.innerHTML = "";
+      const today = new Date();
+      today.setHours(0,0,0,0);
+
+      let addedDays = 0;
+      let currentOffset = 0;
+
+      while (addedDays < calendarDays) {
+        const day = new Date(today);
+        day.setDate(today.getDate() + currentOffset);
+        currentOffset++;
+
+        if ([0, 6].includes(day.getDay())) continue;
+        
+        const dayEl = document.createElement("div");
+        dayEl.className = `calendar-day ${day.getTime() === today.getTime() ? 'today' : ''}`;
+        dayEl.innerHTML = `
+            <div class="text-[10px] font-black text-slate-500 mb-4 tracking-[0.2em] uppercase">${day.toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'2-digit'})}</div>
+        `;
+
+        const dayMovies = allMovies.filter(m => {
+            const mDate = new Date(m.premierAt);
+            return mDate.getFullYear() === day.getFullYear() && 
+                   mDate.getMonth() === day.getMonth() && 
+                   mDate.getDate() === day.getDate();
+        });
+
+        dayMovies.forEach(m => {
+          const movieEl = document.createElement("div");
+          movieEl.className = `mini-movie ${m.sold >= m.threshold ? 'greenlit' : ''}`;
+          
+          const imgContainer = document.createElement('div');
+          imgContainer.className = 'w-full h-full relative';
+          
+          // Add shimmer loading background
+          const shimmer = document.createElement('div');
+          shimmer.className = 'absolute inset-0 poster-loading-shimmer';
+          imgContainer.appendChild(shimmer);
+          
+          const img = document.createElement('img');
+          img.className = 'w-full h-full object-cover lazy-image';
+          imgContainer.appendChild(img);
+          loadMovieImage(m.id, img);
+
+          movieEl.innerHTML = `
+              <div class="mini-movie-info">
+                  <div class="text-[8px] font-black text-cyan-400 mb-1">${new Date(m.premierAt).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</div>
+                  <div class="text-[10px] font-black text-white leading-tight uppercase truncate">${m.title}</div>
+              </div>
+          `;
+          movieEl.insertBefore(imgContainer, movieEl.firstChild);
+          movieEl.onclick = () => openDetail(m);
+          dayEl.appendChild(movieEl);
+        });
+        
+        // Add plus button for empty days
+        if (dayMovies.length === 0) {
+          const plusButton = document.createElement("button");
+          plusButton.className = "w-full h-full flex flex-col items-center justify-center text-slate-700 hover:text-cyan-400 transition group";
+          plusButton.innerHTML = `
+            <div class="mb-2">
+              <i data-lucide="plus" class="h-8 w-8 group-hover:scale-110 transition"></i>
+            </div>
+            <div class="text-[10px] font-black uppercase tracking-widest">Film hinzufügen</div>
+          `;
+          plusButton.onclick = () => {
+            // Set the date in the pitch form to this day
+            const dateInput = document.getElementById('pitch-date');
+            const timeInput = document.getElementById('pitch-time');
+            if (dateInput && timeInput) {
+              // Fix timezone issue: use local date formatting instead of ISO string
+              const year = day.getFullYear();
+              const month = String(day.getMonth() + 1).padStart(2, '0');
+              const date = String(day.getDate()).padStart(2, '0');
+              const formattedDate = `${year}-${month}-${date}`;
+              const defaultTime = '14:00'; // 2 PM default
+              dateInput.value = formattedDate;
+              timeInput.value = defaultTime;
+            }
+            // Open pitch modal
+            document.getElementById("pitch-modal").classList.replace("hidden", "flex");
+          };
+          dayEl.appendChild(plusButton);
+        }
+        
+        grid.appendChild(dayEl);
+        addedDays++;
+      }
+      lucide.createIcons();
+    }
+
+    function openDetail(m) {
+      selectedMovie = m;
+      updateDetailUI(m);
+      const modal = document.getElementById("detail-modal");
+      modal.classList.replace("hidden", "flex");
+    }
+
+    function updateDetailUI(m) {
+      const progress = Math.min((m.sold / m.threshold) * 100, 100);
+      const greenlit = m.sold >= m.threshold;
+      const isOwner = currentUser && m.directorEmail === currentUser.username;
+
+      document.getElementById("detail-title").textContent = m.title.toUpperCase();
+      document.getElementById("detail-desc").textContent = m.description;
+      document.getElementById("detail-director").textContent = m.director;
+      document.getElementById("detail-avatar").textContent = m.director ? m.director.split(' ').map(n=>n[0]).join('') : '?';
+      document.getElementById("detail-date").textContent = new Date(m.premierAt).toLocaleString('de-DE', {weekday:'short', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+      document.getElementById("detail-ticket-count").textContent = `${m.sold} / ${m.threshold}`;
+      document.getElementById("detail-progress").style.width = `${progress}%`;
+      
+      const poster = document.getElementById("detail-poster");
+      poster.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzAyMDYxNyIvPjwvc3ZnPg==';
+      poster.classList.add('hidden');
+      // Show loading indicator
+      const detailLoading = document.getElementById('detail-poster-loading');
+      if (detailLoading) {
+        detailLoading.style.display = 'flex';
+        detailLoading.innerHTML = '<i data-lucide="loader" class="h-10 w-10 animate-spin text-cyan-500"></i><span class="text-[10px] font-black uppercase tracking-widest italic">KI erstellt Filmplakat...</span>';
+        lucide.createIcons();
+      }
+      loadMovieImage(m.id, poster);
+
+      const greenlitBadge = document.getElementById("greenlight-badge");
+      if (greenlitBadge) greenlitBadge.classList.toggle("hidden", !greenlit);
+      
+      const ownerActions = document.getElementById("owner-actions");
+      ownerActions.classList.toggle("hidden", !isOwner);
+
+      document.getElementById("delete-btn").onclick = () => cancelMovie(m.id);
+      document.getElementById("buy-btn").onclick = () => buyTicket(m.id);
+    }
+
+    function closeDetail() {
+      document.getElementById("detail-modal").classList.replace("flex", "hidden");
+      selectedMovie = null;
+    }
+
+    async function cancelMovie(id) {
+      if (!confirm("Möchtest du dieses Filmprojekt wirklich absagen?")) return;
+      await authFetch("/api/n8n/cancel-movie", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movieId: id }) });
+      closeDetail();
+      loadMovies();
+      showToast("Projekt wurde storniert.");
+    }
+
+    async function buyTicket(id) {
+      const res = await authFetch("/api/n8n/buy-ticket", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movieId: id }) });
+      const data = await res.json();
+      if (data.error) showToast(data.error);
+      else { showToast(data.isGreenlit ? "🎬 PREMIERE! Der Film findet statt!" : "Ticket gesichert!"); loadMovies(); }
+    }
+
+    function showToast(m) { 
+      const t = document.getElementById("toast"); 
+      document.getElementById("toast-msg").textContent = m; 
+      t.classList.remove("translate-y-20", "opacity-0"); 
+      setTimeout(() => t.classList.add("translate-y-20", "opacity-0"), 3000); 
+    }
+    
+    function toggleHowToGuide() {
+      const guide = document.getElementById('how-to-guide');
+      if (guide) {
+        guide.classList.toggle('hidden');
+        // Scroll to guide if showing
+        if (!guide.classList.contains('hidden')) {
+          guide.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    }
+    
+    // Initialize the application after MSAL loads
+    function initializeApp() {
+      init();
+    }
+
+    const lazyLoadingStyle = document.createElement('style');
+    lazyLoadingStyle.textContent = `
+      .lazy-image.loading { opacity: 0.3; filter: blur(5px); transition: opacity 0.3s ease, filter 0.3s ease; }
+      .lazy-image.error { opacity: 0.5; background: linear-gradient(45deg, #020617 25%, #0f172a 50%, #020617 75%); background-size: 200% 200%; animation: shimmer 2s infinite; }
+    `;
+    document.head.appendChild(lazyLoadingStyle);
+    </script>
+</body>
+</html>

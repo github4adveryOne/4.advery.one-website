@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MSAL Load Test</title>
+  <script>
+    function testCDN(url) {
+      const script = document.createElement('script');
+      script.src = url;
+      script.onload = () => console.log("✅ Loaded:", url);
+      script.onerror = () => console.log("❌ Failed:", url);
+      document.head.appendChild(script);
+    }
+    
+    window.onload = () => {
+      console.log("Testing MSAL CDNs...");
+      testCDN("https://alcdn.msauth.net/browser/2.24.0/js/msal-browser.min.js");
+      testCDN("https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.24.0/dist/msal-browser.min.js");
+      testCDN("https://unpkg.com/@azure/msal-browser@2.24.0/dist/msal-browser.min.js");
+    };
+  </script>
+</head>
+<body>
+  <h1>MSAL CDN Test</h1>
+  <p>Open browser console (F12) to see which CDNs work.</p>
+</body>
+</html>
