@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+  <div class="min-h-screen md:flex">
+    <!-- Mobile overlay -->
+    <div id="sidebarOverlay" class="fixed inset-0 z-30 hidden bg-slate-900/50 md:hidden"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 -translate-x-full border-r border-slate-200 bg-white transition-transform duration-200 ease-out md:static md:z-0 md:translate-x-0">
+      <div class="flex h-full flex-col">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Workspace</p>
+            <h1 class="text-lg font-bold text-slate-900">Acme Dashboard</h1>
+          </div>
+          <button id="closeSidebarBtn" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden" aria-label="Close menu">
+            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+
+        <nav class="flex-1 space-y-1 px-3 py-4 text-sm">
+          <a href="#" class="flex items-center gap-3 rounded-lg bg-brand-50 px-3 py-2 font-medium text-brand-700">
+            <span>🏠</span> Dashboard
+          </a>
+          <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+            <span>📈</span> Analytics
+          </a>
+          <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+            <span>📁</span> Projects
+          </a>
+          <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+            <span>💬</span> Messages
+          </a>
+          <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+            <span>⚙️</span> Settings
+          </a>
+        </nav>
+
+        <div class="border-t border-slate-200 px-4 py-4 text-xs text-slate-500">
+          Last sync: <span class="font-medium text-slate-700">2 min ago</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <div class="flex-1 md:min-w-0">
+      <!-- Header -->
+      <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <div class="flex items-center gap-3">
+            <button id="openSidebarBtn" class="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 md:hidden" aria-label="Open menu">
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm1 4a1 1 0 100 2h12a1 1 0 100-2H4z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div>
+              <h2 class="text-lg font-semibold text-slate-900">Welcome back, Alex 👋</h2>
+              <p class="text-xs text-slate-500 sm:text-sm">Here is your latest account activity.</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="hidden items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 sm:flex">
+              <img src="https://i.pravatar.cc/80?img=15" alt="User avatar" class="h-8 w-8 rounded-full object-cover" />
+              <div class="leading-tight">
+                <p class="text-sm font-medium text-slate-800">Alex Carter</p>
+                <p class="text-xs text-slate-500">Product Manager</p>
+              </div>
+            </div>
+            <button class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700">Logout</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <!-- Statistics cards -->
+        <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Total Revenue</p>
+            <p class="mt-2 text-2xl font-bold text-slate-900">$48,200</p>
+            <p class="mt-1 text-xs font-medium text-emerald-600">+12.8% vs last month</p>
+          </article>
+          <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Active Users</p>
+            <p class="mt-2 text-2xl font-bold text-slate-900">3,842</p>
+            <p class="mt-1 text-xs font-medium text-emerald-600">+4.2% this week</p>
+          </article>
+          <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">New Signups</p>
+            <p class="mt-2 text-2xl font-bold text-slate-900">286</p>
+            <p class="mt-1 text-xs font-medium text-amber-600">-1.1% from target</p>
+          </article>
+          <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p class="text-sm text-slate-500">Support Tickets</p>
+            <p class="mt-2 text-2xl font-bold text-slate-900">19</p>
+            <p class="mt-1 text-xs font-medium text-emerald-600">92% solved in 24h</p>
+          </article>
+        </section>
+
+        <!-- Recent Activity table -->
+        <section class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <h3 class="text-base font-semibold text-slate-900">Recent Activity</h3>
+            <button class="text-sm font-medium text-brand-600 hover:text-brand-700">View all</button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-left text-sm">
+              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th class="px-5 py-3 font-semibold">User</th>
+                  <th class="px-5 py-3 font-semibold">Action</th>
+                  <th class="hidden px-5 py-3 font-semibold md:table-cell">Date</th>
+                  <th class="px-5 py-3 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr class="hover:bg-slate-50/70">
+                  <td class="px-5 py-4 font-medium text-slate-800">Sarah Miller</td>
+                  <td class="px-5 py-4 text-slate-600">Upgraded to Pro Plan</td>
+                  <td class="hidden px-5 py-4 text-slate-500 md:table-cell">Mar 15, 2026</td>
+                  <td class="px-5 py-4"><span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">Completed</span></td>
+                </tr>
+                <tr class="hover:bg-slate-50/70">
+                  <td class="px-5 py-4 font-medium text-slate-800">Michael Brown</td>
+                  <td class="px-5 py-4 text-slate-600">Submitted support request</td>
+                  <td class="hidden px-5 py-4 text-slate-500 md:table-cell">Mar 15, 2026</td>
+                  <td class="px-5 py-4"><span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">Pending</span></td>
+                </tr>
+                <tr class="hover:bg-slate-50/70">
+                  <td class="px-5 py-4 font-medium text-slate-800">Emma Wilson</td>
+                  <td class="px-5 py-4 text-slate-600">Created new project</td>
+                  <td class="hidden px-5 py-4 text-slate-500 md:table-cell">Mar 14, 2026</td>
+                  <td class="px-5 py-4"><span class="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">In Progress</span></td>
+                </tr>
+                <tr class="hover:bg-slate-50/70">
+                  <td class="px-5 py-4 font-medium text-slate-800">Daniel Lee</td>
+                  <td class="px-5 py-4 text-slate-600">Updated billing information</td>
+                  <td class="hidden px-5 py-4 text-slate-500 md:table-cell">Mar 14, 2026</td>
+                  <td class="px-5 py-4"><span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">Completed</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const openSidebarBtn = document.getElementById('openSidebarBtn');
+    const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+
+    function openSidebar() {
+      sidebar.classList.remove('-translate-x-full');
+      overlay.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+    }
+
+    function closeSidebar() {
+      sidebar.classList.add('-translate-x-full');
+      overlay.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    openSidebarBtn.addEventListener('click', openSidebar);
+    closeSidebarBtn.addEventListener('click', closeSidebar);
+    overlay.addEventListener('click', closeSidebar);
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeSidebar();
+    });
+
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 768) {
+        overlay.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -3,37 +3,243 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hosted by OpenClaw</title>
+    <title>Advery.One - Software Company</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f0f4f8;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            text-align: center;
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-        .container {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 600px;
+        .card-hover {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
-        h1 { color: #007bff; margin-bottom: 1rem; }
-        p { font-size: 1.1rem; line-height: 1.6; color: #555; }
-        .emoji { font-size: 3rem; margin-bottom: 1rem; display: block; }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
     </style>
 </head>
-<body>
-    <div class="container">
-        <span class="emoji">🤖</span>
-        <h1>hosted4.advery.one</h1>
-        <p>This site is hosted directly by OpenClaw on port 443.</p>
-        <p><i>Running on local OpenClaw server.</i></p>
-    </div>
+<body class="bg-gray-50 text-gray-800">
+    <!-- Header -->
+    <header class="gradient-bg text-white">
+        <div class="container mx-auto px-6 py-16">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-bold">Advery.One</h1>
+                    <p class="mt-2 text-xl opacity-90">Software Company</p>
+                    <p class="mt-4 max-w-2xl text-lg opacity-80">
+                        AI-human collaboration for innovative web development
+                    </p>
+                </div>
+                <div class="hidden md:block">
+                    <div class="rounded-full bg-white/20 p-4">
+                        <i class="fas fa-robot text-4xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-12">
+        <div class="mb-12 text-center">
+            <h2 class="text-3xl font-bold text-gray-800">Our Projects</h2>
+            <p class="mt-2 text-gray-600">Live applications built with our multi-agent system</p>
+        </div>
+
+        <!-- Project Cards -->
+        <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            <!-- Corporate Cinema -->
+            <a href="/cinema/" class="card-hover block rounded-xl bg-white p-6 shadow-lg">
+                <div class="mb-4 flex items-center">
+                    <div class="mr-4 rounded-lg bg-purple-100 p-3">
+                        <i class="fas fa-film text-2xl text-purple-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">Corporate Cinema</h3>
+                        <p class="text-sm text-gray-500">Production System</p>
+                    </div>
+                </div>
+                <p class="text-gray-600">
+                    Movie scheduling and interest tracking with Microsoft authentication.
+                </p>
+                <div class="mt-4 flex items-center text-sm text-gray-500">
+                    <i class="fas fa-shield-alt mr-2"></i>
+                    <span>Azure AD Auth Required</span>
+                </div>
+            </a>
+
+            <!-- Corporate Cinema Dev -->
+            <a href="/cinema-dev/" class="card-hover block rounded-xl bg-white p-6 shadow-lg">
+                <div class="mb-4 flex items-center">
+                    <div class="mr-4 rounded-lg bg-blue-100 p-3">
+                        <i class="fas fa-code text-2xl text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">Corporate Cinema</h3>
+                        <p class="text-sm text-gray-500">Development Environment</p>
+                    </div>
+                </div>
+                <p class="text-gray-600">
+                    Development version with latest features and testing.
+                </p>
+                <div class="mt-4 flex items-center text-sm text-gray-500">
+                    <i class="fas fa-flask mr-2"></i>
+                    <span>Testing Environment</span>
+                </div>
+            </a>
+
+            <!-- User Dashboard Demo -->
+            <a href="/user-dashboard.html" class="card-hover block rounded-xl bg-white p-6 shadow-lg">
+                <div class="mb-4 flex items-center">
+                    <div class="mr-4 rounded-lg bg-green-100 p-3">
+                        <i class="fas fa-tachometer-alt text-2xl text-green-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">User Dashboard</h3>
+                        <p class="text-sm text-gray-500">Frontend Demo</p>
+                    </div>
+                </div>
+                <p class="text-gray-600">
+                    Responsive dashboard UI created by our Frontend Developer Agent.
+                </p>
+                <div class="mt-4 flex items-center text-sm text-gray-500">
+                    <i class="fas fa-mobile-alt mr-2"></i>
+                    <span>Fully Responsive</span>
+                </div>
+            </a>
+
+            <!-- Multi-Agent System -->
+            <div class="card-hover rounded-xl bg-gradient-to-br from-gray-800 to-gray-900 p-6 text-white">
+                <div class="mb-4 flex items-center">
+                    <div class="mr-4 rounded-lg bg-gray-700 p-3">
+                        <i class="fas fa-users text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold">Multi-Agent System</h3>
+                        <p class="text-sm text-gray-300">AI Team Collaboration</p>
+                    </div>
+                </div>
+                <p class="text-gray-300">
+                    Specialized AI agents working together: Architect, Frontend, Backend, DevOps, QA, and Project Manager.
+                </p>
+                <div class="mt-4">
+                    <div class="flex flex-wrap gap-2">
+                        <span class="rounded-full bg-gray-700 px-3 py-1 text-xs">🏛️ Architect</span>
+                        <span class="rounded-full bg-gray-700 px-3 py-1 text-xs">🎨 Frontend</span>
+                        <span class="rounded-full bg-gray-700 px-3 py-1 text-xs">⚙️ Backend</span>
+                        <span class="rounded-full bg-gray-700 px-3 py-1 text-xs">🚀 DevOps</span>
+                        <span class="rounded-full bg-gray-700 px-3 py-1 text-xs">🔍 QA</span>
+                        <span class="rounded-full bg-gray-700 px-3 py-1 text-xs">📋 PM</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Infrastructure -->
+            <div class="card-hover rounded-xl bg-white p-6 shadow-lg">
+                <div class="mb-4 flex items-center">
+                    <div class="mr-4 rounded-lg bg-orange-100 p-3">
+                        <i class="fas fa-server text-2xl text-orange-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">Infrastructure</h3>
+                        <p class="text-sm text-gray-500">Hosting & Automation</p>
+                    </div>
+                </div>
+                <ul class="space-y-2 text-gray-600">
+                    <li class="flex items-center">
+                        <i class="fas fa-check text-green-500 mr-2"></i>
+                        Caddy Web Server
+                    </li>
+                    <li class="flex items-center">
+                        <i class="fas fa-check text-green-500 mr-2"></i>
+                        GitHub Auto-Sync
+                    </li>
+                    <li class="flex items-center">
+                        <i class="fas fa-check text-green-500 mr-2"></i>
+                        n8n Automation
+                    </li>
+                    <li class="flex items-center">
+                        <i class="fas fa-check text-green-500 mr-2"></i>
+                        VPN Connectivity
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Company Info -->
+            <div class="card-hover rounded-xl bg-white p-6 shadow-lg">
+                <div class="mb-4 flex items-center">
+                    <div class="mr-4 rounded-lg bg-indigo-100 p-3">
+                        <i class="fas fa-building text-2xl text-indigo-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">Advery.One</h3>
+                        <p class="text-sm text-gray-500">Software Company</p>
+                    </div>
+                </div>
+                <p class="text-gray-600">
+                    Building innovative web applications through AI-human collaboration.
+                </p>
+                <div class="mt-6 border-t pt-4">
+                    <p class="text-sm text-gray-500">
+                        <i class="fas fa-user-tie mr-2"></i>
+                        <strong>Owner:</strong> age
+                    </p>
+                    <p class="mt-2 text-sm text-gray-500">
+                        <i class="fas fa-robot mr-2"></i>
+                        <strong>AI Partner:</strong> OpenClaw
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Section -->
+        <div class="mt-16 rounded-2xl gradient-bg p-8 text-white">
+            <h3 class="mb-6 text-2xl font-bold text-center">System Status</h3>
+            <div class="grid gap-6 md:grid-cols-4">
+                <div class="text-center">
+                    <div class="text-3xl font-bold">6</div>
+                    <div class="text-sm opacity-80">Specialized Agents</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold">3</div>
+                    <div class="text-sm opacity-80">Live Projects</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold">24/7</div>
+                    <div class="text-sm opacity-80">Uptime</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold">AI</div>
+                    <div class="text-sm opacity-80">Human Collaboration</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white">
+        <div class="container mx-auto px-6 py-8">
+            <div class="flex flex-col items-center justify-between md:flex-row">
+                <div class="mb-4 md:mb-0">
+                    <h3 class="text-xl font-bold">Advery.One</h3>
+                    <p class="mt-2 text-gray-400">Software Company</p>
+                </div>
+                <div class="text-center md:text-right">
+                    <p class="text-gray-400">
+                        <i class="fas fa-globe mr-2"></i>
+                        https://4.advery.one
+                    </p>
+                    <p class="mt-2 text-sm text-gray-500">
+                        Powered by OpenClaw Multi-Agent System
+                    </p>
+                </div>
+            </div>
+            <div class="mt-8 border-t border-gray-700 pt-8 text-center text-sm text-gray-500">
+                <p>© 2026 Advery.One Software Company. All systems operational.</p>
+                <p class="mt-2">AI-human collaboration for innovative web development.</p>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>
