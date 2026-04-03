@@ -9,17 +9,17 @@
 - **Corporate Cinema (Development):** `/home/openclaw/.openclaw/workspace/projects/corporate-cinema-dev/frontend/`
 
 ### How It Works:
-1. **Single Source of Truth:** Files are edited in the workspace
-2. **Automatic Deployment:** Symlinks point from here to the workspace
-3. **No Duplication:** Changes are visible immediately on the website
+1. **Single Point of Truth (SPOT):** Files are edited only in the workspace.
+2. **Instant Deployment:** Any change saved in the workspace is immediately live on the website.
+3. **No Duplication:** We avoid redundant copies of large frontend assets.
 
-### Deployment Script:
+### Troubleshooting:
+If Caddy returns a 403, ensure the `caddy` user has traversal permissions (`r-x`) on the path:
 ```bash
-# Sync workspace to web server (if needed for backups)
-/home/openclaw/.openclaw/workspace/scripts/deploy-websites.sh
+sudo setfacl -m m:r-x /home/openclaw/.openclaw
+sudo setfacl -m u:caddy:r-x /home/openclaw/.openclaw
 ```
 
 ### Permissions:
-- Web server (Caddy) can read files via symlinks
-- Workspace files are the only editable copies
-- Never edit files directly in `/var/www/projects/`
+- Web server (Caddy) can read files directly via these symlinks.
+- Workspace files are the only editable copies; never edit files directly in `/var/www/projects/`.

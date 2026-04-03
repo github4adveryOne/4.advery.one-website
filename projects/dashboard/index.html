@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Advery.One Agent Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a2e;
+            color: #e6e6e6;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: #16213e;
+            padding: 1rem;
+            border-bottom: 3px solid #0f3460;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #00adb5;
+            font-size: 2rem;
+            text-shadow: 2px 2px 0 #393e46;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header .subtitle {
+            color: #eeeeee;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .dashboard {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            background: #0f3460;
+            border: 4px solid #00adb5;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            min-height: 400px;
+        }
+        
+        #dashboardCanvas {
+            display: block;
+            background: #16213e;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: #16213e;
+            border-left: 3px solid #0f3460;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .sidebar h2 {
+            color: #00adb5;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            border-bottom: 2px solid #0f3460;
+            padding-bottom: 0.5rem;
+        }
+        
+        .agent-list {
+            margin-bottom: 1.5rem;
+        }
+        
+        .agent-item {
+            background: #0f3460;
+            border: 2px solid #00adb5;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .agent-avatar {
+            width: 32px;
+            height: 32px;
+            background: #393e46;
+            border: 2px solid #00adb5;
+            border-radius: 4px;
+            image-rendering: pixelated;
+        }
+        
+        .agent-info {
+            flex: 1;
+        }
+        
+        .agent-name {
+            font-weight: bold;
+            color: #eeeeee;
+        }
+        
+        .agent-role {
+            font-size: 0.8rem;
+            color: #00adb5;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: auto;
+        }
+        
+        .status-active {
+            background: #00ff88;
+            box-shadow: 0 0 8px #00ff88;
+        }
+        
+        .status-idle {
+            background: #ffaa00;
+            box-shadow: 0 0 8px #ffaa00;
+        }
+        
+        .status-busy {
+            background: #ff5555;
+            box-shadow: 0 0 8px #ff5555;
+        }
+        
+        .status-offline {
+            background: #666666;
+        }
+        
+        .controls {
+            background: #0f3460;
+            padding: 1rem;
+            border-top: 3px solid #00adb5;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        #connectionDot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff5555;
+        }
+        
+        #connectionDot.connected {
+            background: #00ff88;
+            box-shadow: 0 0 8px #00ff88;
+        }
+        
+        button {
+            background: #00adb5;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #0099a5;
+        }
+        
+        button:disabled {
+            background: #666666;
+            cursor: not-allowed;
+        }
+        
+        .grid-toggle {
+            margin-left: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                border-left: none;
+                border-top: 3px solid #0f3460;
+            }
+        }
+
+        /* Auth Overlay Styles */
+        .auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 26, 46, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .auth-card {
+            background: #16213e;
+            padding: 2.5rem;
+            border-radius: 8px;
+            border: 3px solid #00adb5;
+            width: 400px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 173, 181, 0.3);
+        }
+
+        .auth-card h2 {
+            color: #00adb5;
+            margin-bottom: 1rem;
+        }
+
+        .auth-card input {
+            width: 100%;
+            padding: 0.8rem;
+            margin: 1rem 0;
+            background: #1a1a2e;
+            border: 1px solid #00adb5;
+            color: white;
+            font-family: inherit;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .auth-card button {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        .btn-secondary {
+            background: #393e46 !important;
+            margin-top: 1rem !important;
+        }
+
+        .auth-message {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            min-height: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Advery.One Agent Dashboard</h1>
+        <div class="subtitle">Real-time pixel-art visualization of multi-agent company activity</div>
+    </div>
+
+    <!-- Authentication Overlay -->
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-card">
+            <h2>🔐 Security Access</h2>
+            <p>Please verify your identity to access the company dashboard.</p>
+            
+            <div id="otpRequestForm">
+                <input type="text" id="userIdentifier" placeholder="Enter your Identifier (e.g. Owner)" />
+                <button id="requestOtpBtn">Request OTP via Telegram</button>
+            </div>
+            
+            <div id="otpVerifyForm" style="display: none;">
+                <p>An OTP has been sent to your Telegram.</p>
+                <input type="text" id="otpCode" placeholder="Enter 6-digit Code" maxlength="6" />
+                <button id="verifyOtpBtn">Verify & Access</button>
+                <button id="backToRequestBtn" class="btn-secondary">Back</button>
+            </div>
+            
+            <div id="authMessage" class="auth-message"></div>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="dashboard">
+            <div class="canvas-container">
+                <canvas id="dashboardCanvas"></canvas>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <h2>Active Agents</h2>
+            <div class="agent-list" id="agentList">
+                <!-- Agent items will be populated by JavaScript -->
+            </div>
+            
+            <h2>Office Layout</h2>
+            <div class="room-list">
+                <div class="room-item">🏢 CEO Office</div>
+                <div class="room-item">💻 Dev Room</div>
+                <div class="room-item">🔒 Security Hub</div>
+                <div class="room-item">🔄 Operations Center</div>
+                <div class="room-item">🎨 Creative Studio</div>
+                <div class="room-item">🔌 Integration Lab</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <div class="connection-status">
+            <div id="connectionDot"></div>
+            <span id="connectionStatus">Disconnected</span>
+        </div>
+        
+        <button id="connectBtn">Connect to Server</button>
+        <button id="gridToggle" class="grid-toggle">Toggle Grid</button>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+
+    <!-- Main Dashboard Script with Cache Busting -->
+    <script src="dashboard-prod.js?v=1773601160"></script>
+</body>
+</html>

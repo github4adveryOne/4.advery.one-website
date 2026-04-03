@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advery.One Research Hub</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <div id="login-screen" class="screen">
+        <div class="card">
+            <h1>🔐 Research Hub</h1>
+            <div id="username-form">
+                <input type="text" id="username" placeholder="Telegram Username or ID" required>
+                <button onclick="requestOTP()">Request OTP</button>
+            </div>
+            <div id="otp-form" style="display: none;">
+                <p>OTP sent to your Telegram.</p>
+                <input type="text" id="otp" placeholder="6-digit code" maxlength="6" required>
+                <button onclick="verifyOTP()">Verify & Login</button>
+                <button class="secondary" onclick="resetLogin()">Back</button>
+            </div>
+            <p id="auth-status"></p>
+        </div>
+    </div>
+
+    <div id="main-screen" class="screen" style="display: none;">
+        <header>
+            <h1>🐾 Research Hub</h1>
+            <div id="user-info">
+                <span id="display-username"></span>
+                <button onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <main>
+            <div id="new-job-form">
+                <h2>New Research Job</h2>
+                <div class="input-group vertical">
+                    <input type="text" id="topic" placeholder="What do you want to research?">
+                    <div class="settings-row">
+                        <select id="llm_model">
+                            <option value="google/gemini-3-flash-preview">Gemini 3 Flash</option>
+                            <option value="deepseek/deepseek-chat">DeepSeek Chat</option>
+                            <option value="mistral/mistral-large-latest">Mistral Large</option>
+                        </select>
+                        <input type="number" id="max_iterations" placeholder="Max Iterations" value="10" min="1" max="20">
+                        <input type="number" id="max_tokens" placeholder="Max Tokens" value="50000" step="5000">
+                    </div>
+                    <button id="launch-btn" onclick="startResearch()">Launch Agent</button>
+                </div>
+            </div>
+
+            <div id="active-job-container" style="display: none;">
+                <div class="job-card active">
+                    <div class="job-header">
+                        <h3 id="active-job-topic">Topic</h3>
+                        <span id="active-job-status" class="badge">Status</span>
+                    </div>
+                    <div id="active-job-log" class="log-window">
+                        <!-- Logs will appear here -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="job-history">
+                <h2>History</h2>
+                <div id="jobs-list">
+                    <p>No research jobs found.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Job Result Modal -->
+    <div id="result-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modal-topic">Research Topic</h2>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('report')">Report</button>
+                <button class="tab-btn" onclick="showTab('structured')">Data</button>
+                <button class="tab-btn" onclick="showTab('logs')">Full Logs</button>
+            </div>
+            <div id="tab-report" class="tab-content active"></div>
+            <div id="tab-structured" class="tab-content" style="display: none;">
+                <pre id="structured-json"></pre>
+            </div>
+            <div id="tab-logs" class="tab-content" style="display: none;">
+                <pre id="full-logs"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="static/js/app.js"></script>
+</body>
+</html>
