@@ -1,0 +1,174 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator</title>
+    <!-- Include Tailwind CSS for modern, responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Include qrcode.js library for local QR generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        /* Specific tweaks for the generated QR code to ensure it scales correctly */
+        #qrcode {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #qrcode img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4 font-sans text-slate-800">
+
+    <div class="bg-white p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 max-w-sm w-full transition-all">
+        <h1 class="text-2xl font-bold text-slate-800 mb-6 text-center tracking-tight">QR Code Generator</h1>
+        
+        <div class="mb-4">
+            <input 
+                type="text" 
+                id="textInput" 
+                placeholder="Enter text or URL..." 
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm"
+                onkeydown="if(event.key === 'Enter') generateQR()"
+            >
+        </div>
+
+        <!-- Custom Error Message Container -->
+        <div id="errorMsg" class="hidden mb-4 text-sm text-rose-600 bg-rose-50 p-3 rounded-lg border border-rose-100 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span id="errorText"></span>
+        </div>
+
+        <button 
+            onclick="generateQR()" 
+            class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium py-3 px-4 rounded-xl transition-colors mb-6 shadow-sm shadow-blue-200">
+            Generate QR Code
+        </button>
+
+        <!-- Hidden container that reveals once a QR code is generated -->
+        <div id="qrContainer" class="hidden flex-col items-center">
+            <div class="w-full h-[1px] bg-slate-100 mb-6"></div>
+            
+            <div id="qrcode" class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm mb-6 aspect-square w-[200px]"></div>
+            
+            <button 
+                id="downloadBtn"
+                onclick="downloadQR()" 
+                class="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl transition-colors shadow-sm shadow-emerald-200 flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Download PNG
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let qrcode = null;
+
+        function showError(message) {
+            const errDiv = document.getElementById('errorMsg');
+            const errText = document.getElementById('errorText');
+            errText.textContent = message;
+            errDiv.classList.remove('hidden');
+        }
+
+        function hideError() {
+            const errDiv = document.getElementById('errorMsg');
+            errDiv.classList.add('hidden');
+        }
+
+        function generateQR() {
+            const inputElement = document.getElementById("textInput");
+            const text = inputElement.value.trim();
+            const qrContainer = document.getElementById("qrContainer");
+            const qrElement = document.getElementById("qrcode");
+            
+            hideError();
+
+            if (!text) {
+                showError("Please enter some text or a URL.");
+                inputElement.focus();
+                qrContainer.classList.add('hidden');
+                qrContainer.classList.remove('flex');
+                return;
+            }
+
+            // Reveal the container
+            qrContainer.classList.remove('hidden');
+            qrContainer.classList.add('flex');
+
+            // Clear previous QR code if it exists
+            qrElement.innerHTML = '';
+
+            // Generate the new code
+            qrcode = new QRCode(qrElement, {
+                text: text,
+                width: 256,
+                height: 256,
+                colorDark: "#0f172a", // Slate-900
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H // High error correction
+            });
+        }
+
+        function downloadQR() {
+            const qrElement = document.getElementById('qrcode');
+            const originalCanvas = qrElement.querySelector('canvas');
+            const img = qrElement.querySelector('img');
+
+            // Find the active source (qrcode.js generates a canvas, then converts to img)
+            let sourceElement = (img && img.src) ? img : originalCanvas;
+
+            if (!sourceElement) {
+                showError("The QR code is still generating. Please try again in a moment.");
+                return;
+            }
+
+            // Define the size of the white border (padding)
+            const padding = 20;
+
+            // Create a new temporary canvas to draw the bordered image
+            const paddedCanvas = document.createElement('canvas');
+            const ctx = paddedCanvas.getContext('2d');
+
+            // Determine dimensions
+            const qrWidth = sourceElement.width || sourceElement.naturalWidth || 256;
+            const qrHeight = sourceElement.height || sourceElement.naturalHeight || 256;
+
+            // Set the new canvas size to accommodate the QR code + padding on all sides
+            paddedCanvas.width = qrWidth + (padding * 2);
+            paddedCanvas.height = qrHeight + (padding * 2);
+
+            // Fill the new canvas with a white background
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, paddedCanvas.width, paddedCanvas.height);
+
+            // Draw the QR code over the white background, shifted by the padding amount
+            ctx.drawImage(sourceElement, padding, padding, qrWidth, qrHeight);
+
+            // Get the final image URI
+            const imageUri = paddedCanvas.toDataURL("image/png");
+
+            // Create a temporary anchor element to trigger the download
+            const link = document.createElement('a');
+            link.href = imageUri;
+            link.download = 'qr-code.png';
+            
+            // Append, click, and remove to keep the DOM clean
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
