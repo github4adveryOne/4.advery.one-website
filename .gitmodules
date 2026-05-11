@@ -1,0 +1,4 @@
+[submodule "projects/_content"]
+	path = projects/_content
+	url = https://github.com/github4adveryOne/openclaw-workspace.git
+	branch = dev
