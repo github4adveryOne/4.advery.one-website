@@ -12,4 +12,5 @@ subdomains/
 # Existing Repos
 # Don't track if they have their own .git
 projects/demo/.git/
-4.advery.one/.git/
+4.advery.one/.git/# Old dev frontend (not a submodule)
+projects/corporate-cinema-dev-old
