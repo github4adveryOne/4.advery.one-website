@@ -1,0 +1,27 @@
+{
+  "campaign": "bruecknermaschinenbau",
+  "cacheVersion": 2,
+  "text": "Die Logik dahinter kommt nicht aus Buzzwords, sondern aus einem gelernten Muster: Ist-Situation verstehen, das richtige Problem formulieren, Hypothesen testen, kleine Prototypen bauen, Governance anschlussfähig machen und erst dann skalieren, wenn der Proof of Value stimmt.",
+  "preparedText": "Die Logik dahinter kommt nicht aus Buzzwords, sondern aus einem gelernten Muster: Ist-Situation verstehen, das richtige Problem formulieren, Hypothesen testen, kleine Prototypen bauen, Governance anschlussfähig machen und erst dann skalieren, wenn der Proof of Value stimmt.",
+  "voiceId": "DQ4rTqXxHr077oQgsA9D",
+  "modelId": "eleven_v3",
+  "languageCode": "de",
+  "pronunciationReplacements": [
+    "EU AI Act=E.U. A.I. Act",
+    "KI=K.I.",
+    "CV=Lebenslauf",
+    "AI=A.I.",
+    "API=A.P.I.",
+    "IT=I.T.",
+    "OT=O.T.",
+    "IoT=I.o.T.",
+    "RAG=R.A.G.",
+    "LLM=L.L.M.",
+    "OKR=O.K.R.",
+    "KPI=K.P.I.",
+    "MVP=M.V.P.",
+    "A/B=A B"
+  ],
+  "pronunciationDictionaryLocators": [],
+  "generatedAt": "2026-05-15T14:23:06.660Z"
+}

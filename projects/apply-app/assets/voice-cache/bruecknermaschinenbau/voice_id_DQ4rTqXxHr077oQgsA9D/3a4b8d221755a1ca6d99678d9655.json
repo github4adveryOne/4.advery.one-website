@@ -1,0 +1,27 @@
+{
+  "campaign": "bruecknermaschinenbau",
+  "cacheVersion": 2,
+  "text": "Architektur & Plattform. KI-Fähigkeiten als Stack bauen: interoperabel, sicher, datenbewusst und anschlussfähig an Operations. Denk an Right Problem, kleine Tests und messbaren Wert.",
+  "preparedText": "Architektur & Plattform. K.I.-Fähigkeiten als Stack bauen: interoperabel, sicher, datenbewusst und anschlussfähig an Operations. Denk an Right Problem, kleine Tests und messbaren Wert.",
+  "voiceId": "DQ4rTqXxHr077oQgsA9D",
+  "modelId": "eleven_v3",
+  "languageCode": "de",
+  "pronunciationReplacements": [
+    "EU AI Act=E.U. A.I. Act",
+    "KI=K.I.",
+    "alias:CV=Lebenslauf",
+    "AI=A.I.",
+    "API=A.P.I.",
+    "IT=I.T.",
+    "OT=O.T.",
+    "IoT=I.o.T.",
+    "RAG=R.A.G.",
+    "LLM=L.L.M.",
+    "OKR=O.K.R.",
+    "KPI=K.P.I.",
+    "MVP=M.V.P.",
+    "A/B=A B"
+  ],
+  "pronunciationDictionaryLocators": [],
+  "generatedAt": "2026-05-13T14:26:41.518Z"
+}

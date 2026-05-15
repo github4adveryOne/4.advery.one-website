@@ -1,0 +1,20 @@
+{
+  "campaign": "bruecknermaschinenbau",
+  "cacheVersion": 2,
+  "text": "Willkommen zum KI-Strategie-Run fuer Brueckner Maschinenbau.",
+  "preparedText": "Willkommen zum K.I.-Strategie-Run fuer Brueckner Maschinenbau.",
+  "voiceId": "g1jpii0iyvtRs8fqXsd1",
+  "modelId": "eleven_v3",
+  "languageCode": "de",
+  "pronunciationReplacements": [
+    "KI=K.I.",
+    "CV=C.V.",
+    "API=A.P.I.",
+    "IoT=I.o.T.",
+    "RAG=R.A.G.",
+    "LLM=L.L.M.",
+    "EU AI Act=E.U. A.I. Act"
+  ],
+  "pronunciationDictionaryLocators": [],
+  "generatedAt": "2026-05-13T11:02:43.330Z"
+}

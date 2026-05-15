@@ -1,0 +1,20 @@
+{
+  "campaign": "bruecknermaschinenbau",
+  "cacheVersion": 2,
+  "text": "Weiter. Quartal der Exploration. 90-Tage-Lernziel. Roadmap ohne Metrik.",
+  "preparedText": "Weiter. Quartal der Exploration. 90-Tage-Lernziel. Roadmap ohne Metrik.",
+  "voiceId": "DQ4rTqXxHr077oQgsA9D",
+  "modelId": "eleven_v3",
+  "languageCode": "de",
+  "pronunciationReplacements": [
+    "KI=K.I.",
+    "CV=C.V.",
+    "API=A.P.I.",
+    "IoT=I.o.T.",
+    "RAG=R.A.G.",
+    "LLM=L.L.M.",
+    "EU AI Act=E.U. A.I. Act"
+  ],
+  "pronunciationDictionaryLocators": [],
+  "generatedAt": "2026-05-13T12:12:07.884Z"
+}

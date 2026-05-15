@@ -1,0 +1,19 @@
+{
+  "campaign": "supercell",
+  "cacheVersion": "legacy",
+  "text": "Steer left or right to avoid traps. Use Clarify to transform blockers, and hold Sprint to run faster between obstacles! Recover five C.V. fragments to win. Tiny warning: if a path sounds like a steering committee wrote it, check for teeth.",
+  "preparedText": "Steer left or right to avoid traps. Use Clarify to transform blockers, and hold Sprint to run faster between obstacles! Recover five C.V. fragments to win. Tiny warning: if a path sounds like a steering committee wrote it, check for teeth.",
+  "voiceId": "yl2ZDV1MzN4HbQJbMihG",
+  "modelId": "eleven_v3",
+  "languageCode": "en",
+  "pronunciationReplacements": [
+    "AI=A.I.",
+    "CV=C.V.",
+    "CTO=C.T.O.",
+    "KPI=K.P.I.",
+    "LLM=L.L.M.",
+    "XR=X.R."
+  ],
+  "pronunciationDictionaryLocators": [],
+  "generatedAt": "2026-05-14T08:52:38.111Z"
+}

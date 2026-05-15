@@ -1,0 +1,27 @@
+{
+  "campaign": "bruecknermaschinenbau",
+  "cacheVersion": 2,
+  "text": "Small Batches klingen unspektakulär. Genau deshalb retten sie so oft das Budget.",
+  "preparedText": "Small Batches klingen unspektakulär. Genau deshalb retten sie so oft das Budget.",
+  "voiceId": "yl2ZDV1MzN4HbQJbMihG",
+  "modelId": "eleven_v3",
+  "languageCode": "de",
+  "pronunciationReplacements": [
+    "EU AI Act=E.U. A.I. Act",
+    "KI=K.I.",
+    "alias:CV=Lebenslauf",
+    "AI=A.I.",
+    "API=A.P.I.",
+    "IT=I.T.",
+    "OT=O.T.",
+    "IoT=I.o.T.",
+    "RAG=R.A.G.",
+    "LLM=L.L.M.",
+    "OKR=O.K.R.",
+    "KPI=K.P.I.",
+    "MVP=M.V.P.",
+    "A/B=A B"
+  ],
+  "pronunciationDictionaryLocators": [],
+  "generatedAt": "2026-05-15T08:31:00.160Z"
+}

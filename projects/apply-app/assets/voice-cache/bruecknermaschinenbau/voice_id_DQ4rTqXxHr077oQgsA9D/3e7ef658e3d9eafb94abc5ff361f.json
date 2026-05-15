@@ -1,0 +1,21 @@
+{
+  "campaign": "bruecknermaschinenbau",
+  "cacheVersion": 2,
+  "text": "Pilotfriedhof ist ein hartes Wort, aber ein guter Funnel verhindert genau das.",
+  "preparedText": "Pilotfriedhof ist ein hartes Wort, aber ein guter Funnel verhindert genau das.",
+  "voiceId": "DQ4rTqXxHr077oQgsA9D",
+  "modelId": "eleven_v3",
+  "languageCode": "de",
+  "pronunciationReplacements": [
+    "KI=K.I.",
+    "alias:CV=Lebenslauf",
+    "AI=A.I.",
+    "API=A.P.I.",
+    "IoT=I.o.T.",
+    "RAG=R.A.G.",
+    "LLM=L.L.M.",
+    "EU AI Act=E.U. A.I. Act"
+  ],
+  "pronunciationDictionaryLocators": [],
+  "generatedAt": "2026-05-13T12:34:58.578Z"
+}

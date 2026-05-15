@@ -1,0 +1,27 @@
+{
+  "campaign": "bruecknermaschinenbau",
+  "cacheVersion": 2,
+  "text": "Gut. Klare rote Linie sauber genommen.",
+  "preparedText": "Gut. Klare rote Linie sauber genommen.",
+  "voiceId": "6IEvIqBOPOMUc5HwR9sQ",
+  "modelId": "eleven_v3",
+  "languageCode": "de",
+  "pronunciationReplacements": [
+    "EU AI Act=E.U. A.I. Act",
+    "KI=K.I.",
+    "CV=Lebenslauf",
+    "AI=A.I.",
+    "API=A.P.I.",
+    "IT=I.T.",
+    "OT=O.T.",
+    "IoT=I.o.T.",
+    "RAG=R.A.G.",
+    "LLM=L.L.M.",
+    "OKR=O.K.R.",
+    "KPI=K.P.I.",
+    "MVP=M.V.P.",
+    "A/B=A B"
+  ],
+  "pronunciationDictionaryLocators": [],
+  "generatedAt": "2026-05-15T14:08:20.480Z"
+}

@@ -1,0 +1,21 @@
+{
+  "campaign": "bruecknermaschinenbau",
+  "cacheVersion": 2,
+  "text": "Der schönste Use Case ist der, den später jemand freiwillig weiter nutzt.",
+  "preparedText": "Der schönste Use Case ist der, den später jemand freiwillig weiter nutzt.",
+  "voiceId": "DQ4rTqXxHr077oQgsA9D",
+  "modelId": "eleven_v3",
+  "languageCode": "de",
+  "pronunciationReplacements": [
+    "KI=K.I.",
+    "alias:CV=Lebenslauf",
+    "AI=A.I.",
+    "API=A.P.I.",
+    "IoT=I.o.T.",
+    "RAG=R.A.G.",
+    "LLM=L.L.M.",
+    "EU AI Act=E.U. A.I. Act"
+  ],
+  "pronunciationDictionaryLocators": [],
+  "generatedAt": "2026-05-13T12:34:57.316Z"
+}

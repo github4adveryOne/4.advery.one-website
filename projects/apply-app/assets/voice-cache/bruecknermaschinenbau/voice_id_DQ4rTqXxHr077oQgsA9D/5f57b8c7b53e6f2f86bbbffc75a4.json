@@ -1,0 +1,27 @@
+{
+  "campaign": "bruecknermaschinenbau",
+  "cacheVersion": 2,
+  "text": "dieser Run ist meine kurze Antwort auf die Frage nach Person-Job-Fit: Ich arbeite gern genau dort, wo K.I.-Strategie, Softwarearchitektur, Prozesse, Menschen und messbarer Nutzen zusammenkommen.",
+  "preparedText": "dieser Run ist meine kurze Antwort auf die Frage nach Person-Job-Fit: Ich arbeite gern genau dort, wo K.I.-Strategie, Softwarearchitektur, Prozesse, Menschen und messbarer Nutzen zusammenkommen.",
+  "voiceId": "DQ4rTqXxHr077oQgsA9D",
+  "modelId": "eleven_v3",
+  "languageCode": "de",
+  "pronunciationReplacements": [
+    "EU AI Act=E.U. A.I. Act",
+    "KI=K.I.",
+    "alias:CV=Lebenslauf",
+    "AI=A.I.",
+    "API=A.P.I.",
+    "IT=I.T.",
+    "OT=O.T.",
+    "IoT=I.o.T.",
+    "RAG=R.A.G.",
+    "LLM=L.L.M.",
+    "OKR=O.K.R.",
+    "KPI=K.P.I.",
+    "MVP=M.V.P.",
+    "A/B=A B"
+  ],
+  "pronunciationDictionaryLocators": [],
+  "generatedAt": "2026-05-13T14:28:14.248Z"
+}

@@ -1,0 +1,27 @@
+{
+  "campaign": "bruecknermaschinenbau",
+  "cacheVersion": 2,
+  "text": "Nächste Entscheidung. Jobs-to-be-done klären. Use-Case Wunschliste. Stakeholder-Versprechen.",
+  "preparedText": "Nächste Entscheidung. Jobs-to-be-done klären. Use-Case Wunschliste. Stakeholder-Versprechen.",
+  "voiceId": "7bAxGs7snwywohl5VytO",
+  "modelId": "eleven_v3",
+  "languageCode": "de",
+  "pronunciationReplacements": [
+    "EU AI Act=E.U. A.I. Act",
+    "KI=K.I.",
+    "alias:CV=Lebenslauf",
+    "AI=A.I.",
+    "API=A.P.I.",
+    "IT=I.T.",
+    "OT=O.T.",
+    "IoT=I.o.T.",
+    "RAG=R.A.G.",
+    "LLM=L.L.M.",
+    "OKR=O.K.R.",
+    "KPI=K.P.I.",
+    "MVP=M.V.P.",
+    "A/B=A B"
+  ],
+  "pronunciationDictionaryLocators": [],
+  "generatedAt": "2026-05-15T10:17:24.090Z"
+}
