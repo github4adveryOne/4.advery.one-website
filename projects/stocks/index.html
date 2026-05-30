@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<base href="/stocks/">
+<title>Stock Data Overview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background: #0a0e17; color: #c8d6e5; min-height: 100vh; }
+  .login-screen, .dashboard { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+  .login-card { background: #141b2d; border-radius: 16px; padding: 40px; width: 100%; max-width: 420px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.4); text-align: center; }
+  .login-card h1 { font-size: 24px; margin-bottom: 8px; color: #e8edf5; }
+  .login-card p { color: #7f8fa6; margin-bottom: 24px; font-size: 14px; }
+  .login-card .subtitle { font-size: 12px; color: #5f6f8a; margin-bottom: 20px; }
+  .otp-input { width: 100%; padding: 14px 16px; border: 1px solid #1e2d4a; border-radius: 10px; font-size: 24px;
+               text-align: center; letter-spacing: 8px; background: #1a2337; color: #e8edf5; outline: none;
+               transition: border-color 0.2s; }
+  .otp-input:focus { border-color: #3b82f6; }
+  .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
+         cursor: pointer; transition: all 0.2s; margin-top: 12px; }
+  .btn-primary { background: #3b82f6; color: white; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-primary:disabled { background: #1e3a5f; color: #5f6f8a; cursor: not-allowed; }
+  .btn-secondary { background: #1e2d4a; color: #c8d6e5; }
+  .btn-secondary:hover { background: #2a3d5c; }
+  .error { color: #ef4444; font-size: 13px; margin-top: 10px; }
+  .success { color: #22c55e; font-size: 13px; margin-top: 10px; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #1e2d4a;
+             border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.6s linear infinite;
+             margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Dashboard Layout */
+  .dash { display: none; padding: 20px; max-width: 1400px; margin: 0 auto; }
+  .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .dash-header h1 { font-size: 28px; color: #e8edf5; }
+  .dash-header .subtitle { color: #7f8fa6; font-size: 14px; }
+  .logout-btn { background: none; border: 1px solid #2a3d5c; color: #7f8fa6; padding: 8px 16px;
+                border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .logout-btn:hover { border-color: #ef4444; color: #ef4444; }
+
+  .card { background: #141b2d; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card h3 { font-size: 14px; color: #7f8fa6; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .stat { background: #1a2337; border-radius: 10px; padding: 16px; text-align: center; }
+  .stat .value { font-size: 28px; font-weight: 700; color: #e8edf5; }
+  .stat .label { font-size: 12px; color: #5f6f8a; margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #1e2d4a; font-size: 13px; }
+  th { color: #5f6f8a; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; }
+  td { color: #c8d6e5; }
+  tr:hover td { background: #1a2337; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .tag-active { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .tag-inactive { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .tag-source { background: rgba(59,130,246,0.15); color: #3b82f6; }
+  .tag-stooq { background: rgba(168,85,247,0.15); color: #a855f7; }
+  a { color: #3b82f6; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .col { flex: 1; min-width: 300px; }
+
+  .search-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .search-bar input { flex: 1; min-width: 200px; padding: 10px 14px; border: 1px solid #1e2d4a; border-radius: 8px;
+                      background: #1a2337; color: #e8edf5; font-size: 14px; outline: none; }
+  .search-bar input:focus { border-color: #3b82f6; }
+  .pagination { display: flex; gap: 8px; justify-content: center; align-items: center; margin-top: 16px; }
+  .page-btn { background: #1e2d4a; border: none; color: #c8d6e5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .page-btn:hover { background: #2a3d5c; }
+  .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .page-info { color: #5f6f8a; font-size: 13px; }
+
+  .bar-chart { width: 100%; height: 4px; background: #1a2337; border-radius: 2px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #3b82f6, #a855f7); transition: width 0.3s; }
+
+  .hidden { display: none; }
+
+  @media (max-width: 768px) {
+    .dash { padding: 12px; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .card { padding: 14px; }
+  }
+
+  /* Detail overlay */
+  .detail-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7);
+                    display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+  .detail-card { background: #141b2d; border-radius: 16px; width: 100%; max-width: 800px;
+                 max-height: 80vh; overflow-y: auto; padding: 32px; box-shadow: 0 16px 48px rgba(0,0,0,0.6); }
+  .detail-card h2 { color: #e8edf5; margin-bottom: 8px; }
+  .detail-card .close-btn { float: right; background: none; border: none; color: #7f8fa6; font-size: 24px; cursor: pointer; }
+  .detail-card .close-btn:hover { color: #ef4444; }
+  .detail-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0; }
+  .detail-stat { background: #1a2337; border-radius: 8px; padding: 12px; text-align: center; }
+  .detail-stat .v { font-size: 20px; font-weight: 700; color: #e8edf5; }
+  .detail-stat .l { font-size: 11px; color: #5f6f8a; }
+  .chart-container { width: 100%; height: 300px; margin-top: 16px; position: relative; }
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <h1>📊 Stock Data</h1>
+    <p>5-Minute Bar Overview</p>
+    <div class="subtitle">Verify your access with a one-time code</div>
+    <input type="text" id="otpInput" class="otp-input" maxlength="6" placeholder="000000" autocomplete="off">
+    <button id="requestOtpBtn" class="btn btn-primary" onclick="requestOTP()">Send Code to Telegram</button>
+    <button id="verifyOtpBtn" class="btn btn-secondary hidden" onclick="verifyOTP()">Verify</button>
+    <div id="loginStatus" class="error"></div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" class="dash">
+  <div class="dash-header">
+    <div>
+      <h1>📊 Stock Data Overview</h1>
+      <div class="subtitle" id="lastUpdate">Last updated: —</div>
+    </div>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="card">
+    <div class="stat-grid" id="statsGrid">
+      <div class="stat"><div class="value" id="statSymbols">—</div><div class="label">Active Symbols</div></div>
+      <div class="stat"><div class="value" id="statBars">—</div><div class="label">Total 5-Min Bars</div></div>
+      <div class="stat"><div class="value" id="statRecent">—</div><div class="label">Bars (Last 7d)</div></div>
+      <div class="stat"><div class="value" id="statSize">—</div><div class="label">DB Size</div></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Top Symbols -->
+    <div class="col">
+      <div class="card">
+        <h3>Top Symbols by Bar Count</h3>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>Ticker</th><th>Market</th><th>Source</th><th>Bars</th><th>Range</th><th>Active</th></tr></thead>
+            <tbody id="topSymbolsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Symbols by Market -->
+    <div class="col">
+      <div class="card">
+        <h3>Symbols by Market</h3>
+        <div id="marketBreakdown"></div>
+      </div>
+
+      <div class="card">
+        <h3>Import Log</h3>
+        <div id="importLog"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Symbol Search -->
+  <div class="card">
+    <h3>Symbol Search</h3>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search ticker..." oninput="debounceSearch()">
+      <button class="btn btn-secondary" style="width:auto;padding:10px 20px;" onclick="searchSymbols()">Search</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Ticker</th><th>Source</th><th>Market</th><th>Bars</th><th>First Bar</th><th>Last Bar</th><th>Status</th></tr></thead>
+        <tbody id="searchResultsBody">
+          <tr><td colspan="7" style="text-align:center;color:#5f6f8a;">Enter a ticker to search</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" id="searchPagination"></div>
+  </div>
+
+  <!-- Recent Runs -->
+  <div class="card hidden" id="recentRunsCard">
+    <h3>Recent Update Runs</h3>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Run Time</th><th>Duration</th><th>Symbols</th><th>New Bars</th><th>Skipped</th><th>Pruned</th></tr></thead>
+        <tbody id="recentRunsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Overlay -->
+<div id="detailOverlay" class="detail-overlay" onclick="closeDetail(event)">
+  <div class="detail-card" onclick="event.stopPropagation()">
+    <button class="close-btn" onclick="closeDetail()">&times;</button>
+    <h2 id="detailTicker">—</h2>
+    <div class="detail-stats" id="detailStats"></div>
+    <div class="chart-container" id="chartContainer">
+      <canvas id="priceChart"></canvas>
+    </div>
+    <div id="detailBarTable" style="max-height:300px;overflow-y:auto;margin-top:16px;"></div>
+  </div>
+</div>
+
+<script>
+// ── Configuration ─────────────────────────────────────────────────────
+const API_BASE = '/dashboard-api';
+let sessionToken = sessionStorage.getItem('stocks_session') || localStorage.getItem('stocks_session') || '';
+let otpRequested = false;
+let userIdentifier = 'telegram:8433230727';
+let searchTimeout = null;
+
+// ── Session Management ────────────────────────────────────────────────
+function saveSession(token) {
+  sessionToken = token;
+  sessionStorage.setItem('stocks_session', token);
+  localStorage.setItem('stocks_session', token);
+}
+
+function clearSession() {
+  sessionToken = '';
+  sessionStorage.removeItem('stocks_session');
+  localStorage.removeItem('stocks_session');
+}
+
+function logout() {
+  clearSession();
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('otpInput').value = '';
+  document.getElementById('loginStatus').textContent = '';
+}
+
+// ── OTP Auth ──────────────────────────────────────────────────────────
+function showStatus(msg, isError = true) {
+  const el = document.getElementById('loginStatus');
+  el.textContent = msg;
+  el.className = isError ? 'error' : 'success';
+}
+
+async function requestOTP() {
+  const btn = document.getElementById('requestOtpBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Sending...';
+  showStatus('', false);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_identifier: userIdentifier }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showStatus('✅ Code sent to Telegram!', false);
+      otpRequested = true;
+      document.getElementById('requestOtpBtn').classList.add('hidden');
+      document.getElementById('verifyOtpBtn').classList.remove('hidden');
+      document.getElementById('otpInput').focus();
+    } else {
+      showStatus('❌ ' + (data.error || 'Failed to send'));
+    }
+  } catch (e) {
+    showStatus('❌ Network error');
+  }
+  btn.disabled = false;
+  btn.innerHTML = 'Send Code to Telegram';
+}
+
+async function verifyOTP() {
+  const otp = document.getElementById('otpInput').value.trim();
+  if (otp.length !== 6) { showStatus('Please enter a 6-digit code'); return; }
+
+  const btn = document.getElementById('verifyOtpBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Verifying...';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_identifier: userIdentifier, otp }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      saveSession(data.session_token);
+      showStatus('✅ Verified!', false);
+      loadDashboard();
+    } else {
+      showStatus('❌ ' + (data.error || 'Invalid code'));
+    }
+  } catch (e) {
+    showStatus('❌ Network error');
+  }
+  btn.disabled = false;
+  btn.innerHTML = 'Verify';
+}
+
+async function validateSession() {
+  if (!sessionToken) return false;
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/validate-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_token: sessionToken }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+// ── Loading indicator ─────────────────────────────────────────────────
+function setLoading(id, show) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (show) {
+    el.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;"><span class="spinner"></span> Loading...</td></tr>';
+  }
+}
+
+// ── Formatting ────────────────────────────────────────────────────────
+function fmtNum(n) {
+  if (n === null || n === undefined) return '—';
+  return n.toLocaleString();
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  if (d.length > 16) return d.slice(0, 16).replace('T', ' ');
+  return d.replace('T', ' ');
+}
+
+function fmtDuration(s) {
+  if (!s) return '—';
+  if (s < 60) return Math.round(s) + 's';
+  return Math.round(s / 60) + 'm ' + Math.round(s % 60) + 's';
+}
+
+// ── Dashboard Loading ─────────────────────────────────────────────────
+async function loadDashboard() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  await Promise.all([loadOverview(), loadSearchResults(), loadRecentRuns()]);
+}
+
+async function loadOverview() {
+  try {
+    const res = await fetch(`${API_BASE}/api/stocks/overview?token=${sessionToken}`);
+    if (!res.ok) { clearSession(); logout(); return; }
+    const data = await res.json();
+
+    document.getElementById('statSymbols').textContent = fmtNum(data.active_symbols);
+    document.getElementById('statBars').textContent = fmtNum(data.total_bars);
+    document.getElementById('statRecent').textContent = fmtNum(data.recent_7d_bars || 0);
+    document.getElementById('statSize').textContent = (data.db_size_mb || 0) + ' MB';
+    document.getElementById('lastUpdate').textContent =
+      data.newest_bar ? 'Latest bar: ' + fmtDate(data.newest_bar) : 'No data yet';
+
+    // Top symbols
+    const tbody = document.getElementById('topSymbolsBody');
+    if (data.top_symbols && data.top_symbols.length > 0) {
+      const maxBars = data.top_symbols[0].bar_count || 1;
+      tbody.innerHTML = data.top_symbols.map(s => {
+        const pct = Math.round((s.bar_count / maxBars) * 100);
+        return `<tr onclick="showDetail('${s.ticker}')" style="cursor:pointer;">
+          <td><strong>${s.ticker}</strong></td>
+          <td>${s.market || '—'}</td>
+          <td><span class="tag ${s.source === 'stooq' ? 'tag-stooq' : 'tag-source'}">${s.source}</span></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="bar-chart" style="width:80px;"><div class="bar-fill" style="width:${pct}%"></div></div>
+              ${fmtNum(s.bar_count)}
+            </div>
+          </td>
+          <td style="font-size:11px;color:#5f6f8a;">${fmtDate(s.first_bar)} – ${fmtDate(s.last_bar)}</td>
+          <td><span class="tag ${s.active ? 'tag-active' : 'tag-inactive'}">${s.active ? 'Active' : 'Inactive'}</span></td>
+        </tr>`;
+      }).join('');
+    } else {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#5f6f8a;">❌ No stock data yet — run an update first</td></tr>';
+    }
+
+    // Market breakdown
+    const mktDiv = document.getElementById('marketBreakdown');
+    if (data.symbols_by_market) {
+      const total = Object.values(data.symbols_by_market).reduce((a, b) => a + b, 0);
+      mktDiv.innerHTML = Object.entries(data.symbols_by_market).map(([mkt, count]) => `
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e2d4a;font-size:13px;">
+          <span>${mkt.toUpperCase()}</span>
+          <span style="color:#e8edf5;font-weight:600;">${count} <span style="color:#5f6f8a;font-weight:400;">(${Math.round(count/total*100)}%)</span></span>
+        </div>
+      `).join('');
+    } else {
+      mktDiv.innerHTML = '<div style="color:#5f6f8a;text-align:center;padding:12px;">No data</div>';
+    }
+
+    // Stooq ZIP imports
+    if (data.imported_zips && data.imported_zips.length > 0) {
+      const zipsDiv = document.getElementById('importLog');
+      zipsDiv.innerHTML = data.imported_zips.map(z => `
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:#7f8fa6;">
+          <span>📦 ${z.bundle_name}</span>
+          <span>${fmtDate(z.import_date)}</span>
+        </div>
+      `).join('');
+    }
+
+  } catch (e) {
+    console.error('Overview load error:', e);
+  }
+}
+
+let currentSearchPage = 1;
+
+async function searchSymbols(page = 1) {
+  currentSearchPage = page;
+  const q = document.getElementById('searchInput').value.trim().toUpperCase();
+  setLoading('searchResultsBody', true);
+
+  try {
+    const url = `${API_BASE}/api/stocks/symbols?token=${sessionToken}&q=${encodeURIComponent(q)}&page=${page}&per_page=50&active=false&sort=bars`;
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const tbody = document.getElementById('searchResultsBody');
+    if (data.symbols && data.symbols.length > 0) {
+      const maxBars = data.symbols[0].bar_count || 1;
+      tbody.innerHTML = data.symbols.map(s => {
+        const pct = Math.round((s.bar_count / maxBars) * 100);
+        return `<tr onclick="showDetail('${s.ticker}')" style="cursor:pointer;">
+          <td><strong>${s.ticker}</strong></td>
+          <td><span class="tag ${s.source === 'stooq' ? 'tag-stooq' : 'tag-source'}">${s.source}</span></td>
+          <td>${s.market || '—'}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="bar-chart" style="width:60px;"><div class="bar-fill" style="width:${pct}%"></div></div>
+              ${fmtNum(s.bar_count)}
+            </div>
+          </td>
+          <td style="font-size:11px;">${fmtDate(s.first_bar)}</td>
+          <td style="font-size:11px;">${fmtDate(s.last_bar)}</td>
+          <td><span class="tag ${s.active ? 'tag-active' : 'tag-inactive'}">${s.active ? 'Active' : 'Inactive'}</span></td>
+        </tr>`;
+      }).join('');
+    } else {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#5f6f8a;padding:20px;">No symbols found</td></tr>';
+    }
+
+    // Pagination
+    const paginationDiv = document.getElementById('searchPagination');
+    if (data.total_pages > 1) {
+      let html = '';
+      if (data.page > 1) html += `<button class="page-btn" onclick="searchSymbols(${data.page - 1})">← Prev</button>`;
+      html += `<span class="page-info">Page ${data.page} of ${data.total_pages}</span>`;
+      if (data.page < data.total_pages) html += `<button class="page-btn" onclick="searchSymbols(${data.page + 1})">Next →</button>`;
+      paginationDiv.innerHTML = html;
+    } else {
+      paginationDiv.innerHTML = '';
+    }
+  } catch (e) {
+    console.error('Search error:', e);
+  }
+}
+
+function debounceSearch() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => searchSymbols(1), 400);
+}
+
+async function loadRecentRuns() {
+  try {
+    const res = await fetch(`${API_BASE}/api/stocks/last-run?token=${sessionToken}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || data.error) return;
+
+    const tbody = document.getElementById('recentRunsBody');
+    document.getElementById('recentRunsCard').classList.remove('hidden');
+    tbody.innerHTML = `<tr>
+      <td>${fmtDate(data.run_timestamp)}</td>
+      <td>${fmtDuration(data.duration_seconds)}</td>
+      <td>${fmtNum(data.symbols_scanned)}</td>
+      <td>${fmtNum(data.bars_new)}</td>
+      <td>${fmtNum(data.bars_skipped)}</td>
+      <td>${fmtNum(data.bars_pruned)}</td>
+    </tr>`;
+  } catch {}
+}
+
+// ── Detail View ───────────────────────────────────────────────────────
+async function showDetail(ticker) {
+  document.getElementById('detailOverlay').style.display = 'flex';
+  document.getElementById('detailTicker').textContent = ticker;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/stocks/bars/${ticker}?token=${sessionToken}&limit=200`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const bars = data.bars || [];
+    const info = data.info || {};
+    const firstBar = bars.length > 0 ? bars[bars.length - 1] : null;
+    const lastBar = bars.length > 0 ? bars[0] : null;
+
+    document.getElementById('detailStats').innerHTML = `
+      <div class="detail-stat"><div class="v">${fmtNum(bars.length)}</div><div class="l">Bars</div></div>
+      <div class="detail-stat"><div class="v">${lastBar ? lastBar.close.toFixed(2) : '—'}</div><div class="l">Last Close</div></div>
+      <div class="detail-stat"><div class="v">${firstBar ? fmtDate(firstBar.datetime) : '—'}</div><div class="l">First Bar</div></div>
+      <div class="detail-stat"><div class="v">${lastBar ? fmtDate(lastBar.datetime) : '—'}</div><div class="l">Last Bar</div></div>
+    `;
+
+    // Simple price chart
+    drawChart(bars.reverse());
+
+    // Recent bars table
+    const recent = bars.slice(-20).reverse();
+    const tblDiv = document.getElementById('detailBarTable');
+    tblDiv.innerHTML = `<h4 style="color:#7f8fa6;font-size:12px;text-transform:uppercase;margin-bottom:8px;">Recent 20 Bars</h4>
+      <table>
+        <thead><tr><th>Time</th><th>Open</th><th>High</th><th>Low</th><th>Close</th><th>Volume</th></tr></thead>
+        <tbody>${recent.map(b => `
+          <tr>
+            <td style="font-size:11px;">${fmtDate(b.datetime)}</td>
+            <td>${b.open.toFixed(2)}</td>
+            <td style="color:#22c55e;">${b.high.toFixed(2)}</td>
+            <td style="color:#ef4444;">${b.low.toFixed(2)}</td>
+            <td style="font-weight:600;">${b.close.toFixed(2)}</td>
+            <td>${fmtNum(b.volume)}</td>
+          </tr>
+        `).join('')}</tbody>
+      </table>`;
+  } catch (e) {
+    console.error('Detail error:', e);
+  }
+}
+
+function closeDetail(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('detailOverlay').style.display = 'none';
+}
+
+let chartInstance = null;
+
+function drawChart(bars) {
+  const canvas = document.getElementById('priceChart');
+  if (!canvas || bars.length < 2) return;
+
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width || 760;
+  canvas.height = 300;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const pad = { top: 20, right: 20, bottom: 30, left: 60 };
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+
+  // Clear
+  ctx.fillStyle = '#141b2d';
+  ctx.fillRect(0, 0, w, h);
+
+  const prices = bars.map(b => b.close);
+  const low = Math.min(...bars.map(b => b.low)) * 0.999;
+  const high = Math.max(...bars.map(b => b.high)) * 1.001;
+  const range = high - low;
+  const stepX = cw / Math.max(prices.length - 1, 1);
+
+  // Grid lines
+  ctx.strokeStyle = '#1e2d4a';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+  }
+
+  // Price line
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  bars.forEach((b, i) => {
+    const x = pad.left + i * stepX;
+    const y = pad.top + ch - ((b.close - low) / range) * ch;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Volume bars
+  const maxVol = Math.max(...bars.map(b => b.volume), 1);
+  bars.forEach((b, i) => {
+    const x = pad.left + i * stepX - 2;
+    const vh = (b.volume / maxVol) * ch * 0.3;
+    ctx.fillStyle = b.close >= (bars[Math.max(0, i - 1)]?.close || b.close) ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)';
+    ctx.fillRect(x, pad.top + ch - vh, 4, vh);
+  });
+
+  // Y-axis labels
+  ctx.fillStyle = '#5f6f8a';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (ch / 4) * i;
+    const val = high - (range / 4) * i;
+    ctx.fillText(val.toFixed(2), pad.left - 6, y + 4);
+  }
+}
+
+// ── Resize ────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  if (document.getElementById('detailOverlay').style.display === 'flex') {
+    // Chart will redraw on next detail load
+  }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────
+(async function init() {
+  if (sessionToken && await validateSession()) {
+    loadDashboard();
+  }
+})();
+</script>
+</body>
+</html>
